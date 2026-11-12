@@ -144,7 +144,7 @@ export function campoArea(rotulo, nome, valor = '') {
     </label>`;
 }
 
-// Link público de resposta: preserva o subdiretório (ex.: /Cota-o/ no GitHub Pages).
+// Link público de resposta: preserva o subdiretório (ex.: /Cota-Certa/ no GitHub Pages).
 export function linkPublico(token) {
   const dir = location.pathname.replace(/[^/]*$/, '');
   return `${location.origin}${dir}resposta.html?token=${token}`;

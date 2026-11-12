@@ -6,8 +6,8 @@ puro, sem build) e banco no Supabase (PostgreSQL com RLS).
 
 - **Aplicação:** `index.html` (área interna) e `resposta.html` (link do fornecedor)
 - **Banco:** projeto Supabase `cowbpaaaguylhlvnlaac`
-- **Repositório:** https://github.com/jmarysystems/Cota-o
-- **Publicado em:** https://www.jmarysystems.com.br/Cota-o/
+- **Repositório:** https://github.com/jmarysystems/Cota-Certa
+- **Publicado em:** https://www.jmarysystems.com.br/Cota-Certa/
 
 ---
 
