@@ -6,6 +6,7 @@ import * as cotacoes from './views/cotacoes.js';
 import * as cadastros from './views/cadastros.js';
 import * as usuarios from './views/usuarios.js';
 import * as pedidos from './views/pedidos.js';
+import * as vinculos from './views/vinculos.js';
 
 const app = document.getElementById('app');
 let perfil = null;
@@ -62,6 +63,7 @@ function itensDeMenu() {
   if (!fornecedor) {
     itens.push(['#/fornecedores', 'Fornecedores', '◈']);
     itens.push(['#/produtos', 'Produtos', '◧']);
+    itens.push(['#/vinculos', 'Prod. por fornec.', '⇄']);
     itens.push(['#/listas', 'Listas', '☰']);
   }
   if (admin) itens.push(['#/usuarios', 'Usuários', '◉']);
@@ -131,6 +133,7 @@ async function navegar() {
     if (segmento === 'pedidos') return await pedidos.lista(raiz, ctx);
     if (segmento === 'fornecedores') return await cadastros.fornecedores(raiz, ctx);
     if (segmento === 'produtos') return await cadastros.produtos(raiz, ctx);
+    if (segmento === 'vinculos') return await vinculos.lista(raiz, ctx);
     if (segmento === 'listas') return await cadastros.listas(raiz, ctx);
     if (segmento === 'usuarios') return await usuarios.lista(raiz, ctx);
     if (segmento === 'cotacoes') {

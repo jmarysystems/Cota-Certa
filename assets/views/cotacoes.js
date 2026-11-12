@@ -400,6 +400,16 @@ async function modalEnvio(cot, ctx) {
     largura: '760px',
     corpo: `
       <p class="sub">Marque os fornecedores e o canal. O sistema gera um link único de resposta para cada um e registra o envio.</p>
+      <div class="grade grade-2" style="margin-bottom:14px">
+        <label class="campo">
+          <span>Como escolher os fornecedores</span>
+          <select id="origem">
+            <option value="manual">Manual — marco na lista abaixo</option>
+            <option value="tabela">Pela tabela produto × fornecedor</option>
+          </select>
+        </label>
+        <div id="cobertura" class="sub" style="align-self:end"></div>
+      </div>
       <div class="tabela-rolagem"><table>
         <thead><tr><th></th><th>Fornecedor</th><th>Contato</th><th>E-mail</th><th>WhatsApp</th></tr></thead>
         <tbody>
@@ -426,6 +436,36 @@ async function modalEnvio(cot, ctx) {
   });
 
   corpo.querySelector('#fechar-modal').addEventListener('click', fechar);
+
+  const origem = corpo.querySelector('#origem');
+  const cobertura = corpo.querySelector('#cobertura');
+
+  origem.addEventListener('change', async () => {
+    if (origem.value !== 'tabela') {
+      cobertura.textContent = '';
+      return;
+    }
+    cobertura.textContent = 'Consultando a tabela de vínculos…';
+    try {
+      const res = await rpc('fn_fornecedores_da_cotacao', { p_cotacao_id: cot.id });
+      const ids = new Set((res.fornecedores || []).map((f) => f.fornecedor_id));
+      for (const cb of corpo.querySelectorAll('input[name="forn"]')) cb.checked = ids.has(cb.value);
+
+      const semFornecedor = res.itens_sem_fornecedor || [];
+      const comFornecedor = (res.total_itens || 0) - semFornecedor.length;
+      let texto = `${(res.fornecedores || []).length} fornecedor(es) marcado(s) — cobrem ${comFornecedor} de ${res.total_itens} item(ns).`;
+      if (semFornecedor.length) texto += ` Sem fornecedor cadastrado: ${semFornecedor.join(', ')}.`;
+      if (!(res.fornecedores || []).length) texto = 'Nenhum fornecedor vinculado aos itens desta cotação.';
+      cobertura.textContent = texto;
+
+      if (!(res.fornecedores || []).length) {
+        ui.toast('Nenhum fornecedor vinculado aos itens desta cotação.', 'erro');
+      }
+    } catch (erro) {
+      cobertura.textContent = '';
+      ui.toast(erro.message, 'erro');
+    }
+  });
 
   corpo.querySelector('#preparar').addEventListener('click', async (ev) => {
     const marcados = [...corpo.querySelectorAll('input[name="forn"]:checked')].map((i) => i.value);

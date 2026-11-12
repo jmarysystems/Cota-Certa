@@ -221,6 +221,8 @@ Ambas com `security_invoker = true`, então respeitam o RLS de quem consulta.
 | `fn_responder_cotacao(p_token, p_empresa, p_itens, p_prazo_entrega, p_pagamento, p_validade, p_observacao)` | Público | Grava a resposta e os itens, calcula o total, marca `respondido` e a cotação como `em_analise`. Bloqueia resposta duplicada. |
 | `fn_aprovar_cotacao(p_cotacao_id, p_itens)` | Admin | Sem `p_itens`: aprova automaticamente o **menor custo por item**. Com `p_itens` (`[{cotacao_item_id, fornecedor_id}]`): respeita sua escolha manual. Grava em `cotacoes_aprovadas` e muda o status para `aprovada`. |
 | `fn_gerar_pedidos(p_cotacao_id)` | Admin | Agrupa as aprovações por fornecedor e cria um `pedidos_gerados` + `pedido_itens` para cada um. Idempotente: não duplica pedido já gerado. |
+| `fn_importar_produtos_por_fornecedor(p_linhas)` | Admin | Recebe as linhas da planilha (SKU, fornecedor/CNPJ, descrição, unidade), casa o fornecedor por CNPJ ou razão social e o produto por SKU (cria o produto se faltar) e grava os vínculos em `produto_por_fornecedor`. Devolve `{vinculados, produtos_criados, sem_fornecedor, linhas_ignoradas}`. |
+| `fn_fornecedores_da_cotacao(p_cotacao_id)` | Admin | Consulta a tabela de vínculos e devolve quais fornecedores atendem os itens da cotação, quantos itens cada um cobre e quais SKUs ficaram sem fornecedor. |
 
 ---
 
@@ -232,6 +234,7 @@ Ambas com `security_invoker = true`, então respeitam o RLS de quem consulta.
                       └─ fn_importar_lista_para_cotacao  ← planilha/lista
 3. Finalização        status: finalizada
 4. Envio              um cotacao_envios por fornecedor/canal (token gerado)
+                      └─ seleção manual ou pela tabela produto × fornecedor
                       └─ e-mail / WhatsApp disparam no app; fn_registrar_envio grava o resultado
 5. Resposta           fornecedor abre o link com token
                       └─ fn_cotacao_publica → fn_responder_cotacao

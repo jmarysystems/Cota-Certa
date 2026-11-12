@@ -77,6 +77,8 @@ Para publicar sem instalar nada: **Add file → Upload files** e arraste as past
 Fornecedores  → cadastre o fornecedor (contato, e-mail, WhatsApp, prazo,
                 tipo/prazo de pagamento)
 Produtos      → cadastre manualmente ou importe uma planilha
+Prod. por fornec. → relacione SKU ↔ fornecedor (manual ou importando planilha);
+                é essa tabela que permite enviar a cotação só a quem fornece os itens
 Listas        → a planilha vira uma lista; os SKUs são sincronizados em Produtos
 Cotações      → nova cotação → adicione itens ou importe uma lista → Finalizar
               → Enviar aos fornecedores (gera link único por fornecedor)
@@ -119,7 +121,8 @@ assets/
     cotacoes.js            lista, criação, detalhe, envio, aprovação, pedidos
     cadastros.js           fornecedores, produtos, importação, listas
     usuarios.js            perfis de acesso
-    pedidos.js             pedidos e envio ao fornecedor
+    vinculos.js            produtos por fornecedor (importação por arquivo)
+    pedidos.js             pedidos, recebimento, NF e impressão
 docs/TABELAS.md            tabelas e matriz de permissões
 supabase/migrations/       DDL versionado (aplicar na ordem dos nomes)
 tools/                     utilitários de manutenção (Python, opcionais)
