@@ -37,6 +37,10 @@ async function iniciar() {
     return tela(`A cotação ${cotacao.codigo} já foi respondida por ${fornecedor?.nome || 'este fornecedor'}. Obrigado!`, 'ok');
   }
 
+  if (cotacao.prazo_encerrado) {
+    return tela(`O prazo para responder a cotação ${cotacao.codigo} encerrou em ${ui.dataHoraBR(cotacao.prazo_resposta)}.`, 'ok');
+  }
+
   app.innerHTML = `
     <div class="tela-login" style="display:block;padding:32px 16px">
       <div style="max-width:860px;margin:0 auto">
@@ -46,7 +50,7 @@ async function iniciar() {
           <p class="sub">
             <span class="mono">${ui.esc(cotacao.codigo)}</span> ·
             Para <strong>${ui.esc(fornecedor?.nome || '')}</strong>
-            ${cotacao.prazo_resposta ? ` · responda até ${ui.dataBR(cotacao.prazo_resposta)}` : ''}
+            ${cotacao.prazo_resposta ? ` · responda até ${ui.dataHoraBR(cotacao.prazo_resposta)}` : ''}
           </p>
           ${cotacao.observacao ? `<p>${ui.esc(cotacao.observacao)}</p>` : ''}
         </div>

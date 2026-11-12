@@ -273,12 +273,14 @@ function modalEnvioPedido(p, ctx) {
 
   const texto = (canal) => [
     `Olá${fornecedor.contato_nome ? ` ${fornecedor.contato_nome}` : ''}!`,
+    'Segue cotação aprovada pelo sistema Cota-Certa da JMarySystems.',
+    '',
     `Segue o pedido ${p.numero} (${itens.length} item(ns)), total ${ui.brl(p.valor_total)}.`,
     '',
     ...itens.map((i) => `• ${i.quantidade} ${i.unidade} — ${i.descricao}${i.sku ? ` (SKU ${i.sku})` : ''} — ${ui.brl(i.valor_de_custo_do_fornecedor)} un.`),
     '',
     `Data do pedido: ${ui.dataBR(p.data_pedido)}.`,
-    canal === 'whatsapp' ? 'Qualquer dúvida, é só responder por aqui.' : 'Qualquer dúvida, é só responder este e-mail.',
+    'Qualquer dúvida, é só contactar por email ou whatsapp.',
   ].join('\n');
 
   const wa = ui.linkWhatsapp(fornecedor.whatsapp, texto('whatsapp'));

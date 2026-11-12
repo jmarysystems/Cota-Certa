@@ -5,6 +5,15 @@ import * as ui from '../ui.js';
 const STATUS_QUE_PERMITE_ENVIO = ['finalizada', 'enviada', 'em_analise'];
 const STATUS_QUE_PERMITE_APROVAR = ['enviada', 'em_analise', 'finalizada', 'aprovada'];
 
+// Sugestão de prazo: daqui a 7 dias, 18:00 (horário local).
+function prazoPadrao() {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  d.setHours(18, 0, 0, 0);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T18:00`;
+}
+
 export async function lista(raiz, ctx) {
   ctx.setTitulo('Cotações');
   const cots = await listar('cotacoes', { ordem: 'criado_em', asc: false });
@@ -49,7 +58,7 @@ export async function nova(raiz, ctx) {
       <h2>Nova cotação</h2>
       <form id="form-cotacao" class="grade grade-2">
         ${ui.campoTexto('Título', 'titulo', '', { obrigatorio: true, placeholder: 'Ex.: Fixadores — obra 12' })}
-        ${ui.campoTexto('Prazo para resposta', 'prazo_resposta', '', { tipo: 'date' })}
+        ${ui.campoTexto('Prazo para resposta (data e hora)', 'prazo_resposta', prazoPadrao(), { tipo: 'datetime-local' })}
         ${ui.campoArea('Observação', 'observacao')}
         <div class="linha-acoes campo-largo">
           <button type="submit" class="botao-primario">Criar e abrir</button>
@@ -64,7 +73,9 @@ export async function nova(raiz, ctx) {
     try {
       const cot = await criar('cotacoes', {
         titulo: dados.titulo,
-        prazo_resposta: dados.prazo_resposta,
+        prazo_resposta: dados.prazo_resposta
+          ? new Date(dados.prazo_resposta).toISOString()
+          : null,
         observacao: dados.observacao,
         criado_por: ctx.perfil.id,
         status: 'rascunho',
@@ -219,7 +230,7 @@ export async function detalhe(raiz, ctx) {
         <div>
           <h2>${ui.esc(cot.titulo || 'Sem título')} ${ui.badgeStatus(cot.status)}</h2>
           <p class="sub mono">${ui.esc(cot.codigo)} · criada em ${ui.dataBR(cot.criado_em)}
-            ${cot.prazo_resposta ? ` · prazo de resposta ${ui.dataBR(cot.prazo_resposta)}` : ''}</p>
+            ${cot.prazo_resposta ? ` · prazo de resposta ${ui.dataHoraBR(cot.prazo_resposta)}` : ''}</p>
         </div>
         <div class="linha-acoes">${acoesAdmin}</div>
       </div>
@@ -495,9 +506,13 @@ async function modalEnvio(cot, ctx) {
         const link = ui.linkPublico(e.token);
         return [
           `Olá${e.fornecedores?.contato_nome ? ` ${e.fornecedores.contato_nome}` : ''}!`,
-          `Segue a cotação ${cot.codigo}${cot.titulo ? ` — ${cot.titulo}` : ''}.`,
-          cot.prazo_resposta ? `Prazo para resposta: ${ui.dataBR(cot.prazo_resposta)}.` : '',
+          'Segue cotação do sistema Cota-Certa da JMarySystems.',
+          '',
+          `Cotação ${cot.codigo}${cot.titulo ? ` — ${cot.titulo}` : ''}.`,
+          cot.prazo_resposta ? `Prazo para resposta: ${ui.dataHoraBR(cot.prazo_resposta)}.` : '',
           `Responda pelo link: ${link}`,
+          '',
+          'Qualquer dúvida, é só contactar por email ou whatsapp.',
         ].filter(Boolean).join('\n');
       };
 

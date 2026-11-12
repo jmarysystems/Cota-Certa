@@ -99,7 +99,7 @@ Listas/planilhas de itens importadas.
 | **`status`** | text | *novo* — `rascunho`\|`finalizada`\|`enviada`\|`em_analise`\|`aprovada`\|`cancelada` |
 | **`criado_por`** | uuid | *novo* — FK → `usuarios` |
 | **`finalizada_em`** | timestamptz | *novo* |
-| **`prazo_resposta`** | date | *novo* |
+| **`prazo_resposta`** | timestamptz | *novo* — data e hora limite para resposta (fuso de referência America/Sao_Paulo). `fn_responder_cotacao` recusa respostas depois desse instante. |
 | `criado_em`, **`atualizado_em`** | timestamptz | |
 
 ### 2.7 `cotacao_itens`
