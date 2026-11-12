@@ -1,5 +1,5 @@
 // Pedidos gerados: lista, itens, recebimento, nota fiscal, impressão e envio.
-import { listar, atualizar } from '../api.js';
+import { listar, atualizar, mapaEan, eanDoMapa } from '../api.js';
 import * as ui from '../ui.js';
 
 const dataInput = (iso) => {
@@ -30,6 +30,8 @@ export async function lista(raiz, ctx) {
       ${ui.vazio('Nenhum pedido gerado. Aprove uma cotação para gerar os pedidos.')}</div>`;
     return;
   }
+
+  const eans = await mapaEan();
 
   const blocos = pedidos.map((p) => {
     const itens = p.pedido_itens || [];
@@ -62,10 +64,11 @@ export async function lista(raiz, ctx) {
         </div>
         <div id="itens-${ui.esc(p.id)}" hidden>
           <div class="tabela-rolagem"><table>
-            <thead><tr><th>SKU</th><th>Descrição</th><th class="num">Qtd.</th><th>Un.</th><th class="num">Custo unit.</th><th class="num">Total</th></tr></thead>
+            <thead><tr><th>SKU</th><th>EAN</th><th>Descrição</th><th class="num">Qtd.</th><th>Un.</th><th class="num">Custo unit.</th><th class="num">Total</th></tr></thead>
             <tbody>
               ${itens.map((i) => `<tr>
                 <td class="mono">${ui.esc(i.sku || '—')}</td>
+                <td class="mono">${ui.esc(eanDoMapa(eans, i.sku))}</td>
                 <td>${ui.esc(i.descricao)}</td>
                 <td class="num">${ui.num(i.quantidade)}</td>
                 <td>${ui.esc(i.unidade)}</td>
@@ -73,7 +76,7 @@ export async function lista(raiz, ctx) {
                 <td class="num">${ui.brl(i.valor_total)}</td>
               </tr>`).join('')}
             </tbody>
-            <tfoot><tr><th colspan="5">Total</th><th class="num">${ui.brl(p.valor_total)}</th></tr></tfoot>
+            <tfoot><tr><th colspan="6">Total</th><th class="num">${ui.brl(p.valor_total)}</th></tr></tfoot>
           </table></div>
         </div>
       </div>`;
@@ -105,7 +108,7 @@ export async function lista(raiz, ctx) {
   for (const b of raiz.querySelectorAll('[data-imprimir]')) {
     b.addEventListener('click', () => {
       const p = pedidos.find((x) => x.id === b.dataset.imprimir);
-      imprimirPedido(p);
+      imprimirPedido(p, eans);
     });
   }
 
@@ -174,7 +177,7 @@ function modalRecebimento(p, ctx) {
 // ---------------------------------------------------------------------
 // Impressão
 // ---------------------------------------------------------------------
-function imprimirPedido(p) {
+function imprimirPedido(p, eans) {
   document.querySelectorAll('.area-impressao').forEach((n) => n.remove());
 
   const forn = p.fornecedores || {};
@@ -217,17 +220,19 @@ function imprimirPedido(p) {
     <table>
       <thead>
         <tr>
-          <th style="width:16%">SKU</th>
+          <th style="width:13%">SKU</th>
+          <th style="width:18%">EAN</th>
           <th>Descrição</th>
-          <th class="num" style="width:11%">Qtd.</th>
-          <th style="width:9%">Un.</th>
-          <th class="num" style="width:15%">Custo unit.</th>
-          <th class="num" style="width:15%">Total</th>
+          <th class="num" style="width:10%">Qtd.</th>
+          <th style="width:8%">Un.</th>
+          <th class="num" style="width:14%">Custo unit.</th>
+          <th class="num" style="width:14%">Total</th>
         </tr>
       </thead>
       <tbody>
         ${itens.map((i) => `<tr>
           <td>${ui.esc(i.sku || '—')}</td>
+          <td>${ui.esc(eanDoMapa(eans, i.sku))}</td>
           <td>${ui.esc(i.descricao)}</td>
           <td class="num">${ui.num(i.quantidade)}</td>
           <td>${ui.esc(i.unidade)}</td>
@@ -237,7 +242,7 @@ function imprimirPedido(p) {
       </tbody>
       <tfoot>
         <tr>
-          <th colspan="5" class="num">TOTAL DO PEDIDO</th>
+          <th colspan="6" class="num">TOTAL DO PEDIDO</th>
           <th class="num">${ui.brl(p.valor_total)}</th>
         </tr>
       </tfoot>

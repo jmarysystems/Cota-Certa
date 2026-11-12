@@ -67,6 +67,7 @@ Perfil do usuário, ligado ao login do Supabase Auth (`auth.users`).
 |---|---|---|
 | `id` | uuid | PK |
 | `sku` | text | único, comparado em maiúsculas sem espaços; não pode ser vazio |
+| **`ean`** | text | *novo* — código de barras. Nos produtos que já existiam foi preenchido com o próprio SKU. |
 | `descricao` | text | obrigatório |
 | `unidade` | text | obrigatório |
 | `origem` | text | *novo* — `manual` ou `lista:<nome>` |
@@ -83,6 +84,7 @@ Listas/planilhas de itens importadas.
 | `id` | uuid | PK |
 | `lista` | text | nome da lista |
 | `sku`, `descricao`, `unidade` | text | |
+| **`ean`** | text | *novo* — código de barras lido da planilha |
 | `quantidade` | numeric | |
 | `ordem` | integer | ordem de exibição |
 | **`produto_id`** | uuid | *novo* — FK → `produtos`, preenchida na importação |

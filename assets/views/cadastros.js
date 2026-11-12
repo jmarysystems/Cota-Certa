@@ -122,6 +122,7 @@ export async function produtos(raiz, ctx) {
   const linhas = dados.map((p) => `
     <tr>
       <td class="mono">${ui.esc(p.sku)}</td>
+      <td class="mono">${ui.esc(p.ean || '—')}</td>
       <td>${ui.esc(p.descricao)}</td>
       <td>${ui.esc(p.unidade)}</td>
       <td class="sub">${ui.esc(p.origem || 'manual')}</td>
@@ -141,7 +142,7 @@ export async function produtos(raiz, ctx) {
         </div>
       </div>
       ${dados.length ? `<div class="tabela-rolagem"><table>
-        <thead><tr><th>SKU</th><th>Descrição</th><th>Unidade</th><th>Origem</th><th></th></tr></thead>
+        <thead><tr><th>SKU</th><th>EAN</th><th>Descrição</th><th>Unidade</th><th>Origem</th><th></th></tr></thead>
         <tbody>${linhas}</tbody></table></div>` : ui.vazio('Nenhum produto cadastrado. Importe uma planilha ou cadastre manualmente.')}
     </div>`;
 
@@ -177,6 +178,7 @@ function modalProduto(p, ctx) {
     corpo: `
       <form id="form-produto" class="grade grade-2">
         ${ui.campoTexto('SKU', 'sku', p.sku, { obrigatorio: true })}
+        ${ui.campoTexto('EAN', 'ean', p.ean, { placeholder: 'código de barras' })}
         ${ui.campoTexto('Unidade', 'unidade', p.unidade || 'un', { obrigatorio: true })}
         ${ui.campoTexto('Descrição', 'descricao', p.descricao, { obrigatorio: true })}
         <div class="linha-acoes campo-largo">
@@ -254,6 +256,7 @@ async function modalImportarPlanilha(ctx) {
         else if (n.startsWith('descri') || n === 'produto' || n === 'item') mapaColunas.descricao = chave;
         else if (['quantidade', 'qtd', 'qtde', 'qde'].includes(n)) mapaColunas.quantidade = chave;
         else if (['unidade', 'un', 'und', 'um'].includes(n)) mapaColunas.unidade = chave;
+        else if (['ean', 'ean13', 'gtin', 'codigo de barras', 'codigo de barras ean'].includes(n)) mapaColunas.ean = chave;
       }
 
       if (mapaColunas.descricao === undefined) {
@@ -266,6 +269,7 @@ async function modalImportarPlanilha(ctx) {
         descricao: String(linha[mapaColunas.descricao] ?? '').trim(),
         quantidade: Number(String(linha[mapaColunas.quantidade] ?? '0').replace(',', '.')) || 0,
         unidade: String(linha[mapaColunas.unidade] ?? 'un').trim() || 'un',
+        ean: mapaColunas.ean ? String(linha[mapaColunas.ean] ?? '').trim() || null : null,
         ordem: indice + 1,
       })).filter((r) => r.descricao);
 

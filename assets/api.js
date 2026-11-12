@@ -104,6 +104,20 @@ export async function excluirOnde(tabela, filtro) {
   if (error) throw new Error(traduzErro(error));
 }
 
+// Mapa SKU -> EAN, para exibir o EAN em telas que guardam apenas o SKU.
+export async function mapaEan() {
+  const linhas = await listar('produtos', { select: 'sku, ean' });
+  const mapa = new Map();
+  for (const p of linhas) {
+    const chave = String(p.sku ?? '').trim().toUpperCase();
+    if (chave) mapa.set(chave, p.ean ?? '');
+  }
+  return mapa;
+}
+
+export const eanDoMapa = (mapa, sku) =>
+  mapa.get(String(sku ?? '').trim().toUpperCase()) || '—';
+
 export async function rpc(nome, args = {}) {
   const { data, error } = await sb.rpc(nome, args);
   if (error) throw new Error(traduzErro(error));

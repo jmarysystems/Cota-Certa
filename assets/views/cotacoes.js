@@ -1,5 +1,5 @@
 // Cotações: lista, criação, detalhe com itens, envio, resultado, aprovação e pedidos.
-import { listar, buscar, criar, atualizar, excluir, rpc } from '../api.js';
+import { listar, buscar, criar, atualizar, excluir, rpc, mapaEan, eanDoMapa } from '../api.js';
 import * as ui from '../ui.js';
 
 const STATUS_QUE_PERMITE_ENVIO = ['finalizada', 'enviada', 'em_analise'];
@@ -99,6 +99,7 @@ export async function detalhe(raiz, ctx) {
 
   const ehFornecedor = ctx.perfil.tipo === 'fornecedor';
   const itens = await listar('cotacao_itens', { eq: { cotacao_id: id }, ordem: 'ordem' });
+  const eans = await mapaEan();
   const envios = await listar('cotacao_envios', {
     eq: { cotacao_id: id },
     select: '*, fornecedores(razao_social, email, whatsapp, contato_nome)',
@@ -142,11 +143,12 @@ export async function detalhe(raiz, ctx) {
 
   const tabelaItens = itens.length ? `
     <div class="tabela-rolagem"><table>
-      <thead><tr><th>#</th><th>SKU</th><th>Descrição</th><th class="num">Qtd.</th><th>Un.</th>${editavel ? '<th></th>' : ''}</tr></thead>
+      <thead><tr><th>#</th><th>SKU</th><th>EAN</th><th>Descrição</th><th class="num">Qtd.</th><th>Un.</th>${editavel ? '<th></th>' : ''}</tr></thead>
       <tbody>
         ${itens.map((i) => `<tr>
           <td>${ui.esc(i.ordem)}</td>
           <td class="mono">${ui.esc(i.sku || '—')}</td>
+          <td class="mono">${ui.esc(eanDoMapa(eans, i.sku))}</td>
           <td>${ui.esc(i.descricao)}</td>
           <td class="num">${ui.num(i.quantidade)}</td>
           <td>${ui.esc(i.unidade)}</td>
@@ -191,10 +193,11 @@ export async function detalhe(raiz, ctx) {
 
   const tabelaAprovadas = aprovadas.length ? `
     <div class="tabela-rolagem"><table>
-      <thead><tr><th>SKU</th><th>Descrição</th><th class="num">Qtd.</th><th>Un.</th><th>Fornecedor</th><th class="num">Custo unit.</th><th class="num">Total</th></tr></thead>
+      <thead><tr><th>SKU</th><th>EAN</th><th>Descrição</th><th class="num">Qtd.</th><th>Un.</th><th>Fornecedor</th><th class="num">Custo unit.</th><th class="num">Total</th></tr></thead>
       <tbody>
         ${aprovadas.map((a) => `<tr>
           <td class="mono">${ui.esc(a.sku || '—')}</td>
+          <td class="mono">${ui.esc(eanDoMapa(eans, a.sku))}</td>
           <td>${ui.esc(a.descricao)}</td>
           <td class="num">${ui.num(a.quantidade)}</td>
           <td>${ui.esc(a.unidade)}</td>
@@ -204,7 +207,7 @@ export async function detalhe(raiz, ctx) {
         </tr>`).join('')}
       </tbody>
       <tfoot><tr>
-        <th colspan="6">Total aprovado</th>
+        <th colspan="7">Total aprovado</th>
         <th class="num">${ui.brl(aprovadas.reduce((s, a) => s + Number(a.valor_total || 0), 0))}</th>
       </tr></tfoot>
     </table></div>` : ui.vazio('Nenhuma aprovação registrada.');
@@ -296,7 +299,7 @@ export async function detalhe(raiz, ctx) {
   }
 
   if (botao('#btn-enviar')) botao('#btn-enviar').addEventListener('click', () => modalEnvio(cot, ctx));
-  if (botao('#btn-aprovar')) botao('#btn-aprovar').addEventListener('click', () => modalAprovacao(cot, ctx, agrupado));
+  if (botao('#btn-aprovar')) botao('#btn-aprovar').addEventListener('click', () => modalAprovacao(cot, ctx, agrupado, eans));
 
   if (botao('#btn-pedidos')) {
     botao('#btn-pedidos').addEventListener('click', async () => {
@@ -574,7 +577,7 @@ function agruparRanking(ranking) {
   ]);
 }
 
-function modalAprovacao(cot, ctx, agrupado) {
+function modalAprovacao(cot, ctx, agrupado, eans) {
   if (!agrupado.length) {
     ui.toast('Nenhuma oferta para aprovar.', 'erro');
     return;
@@ -583,7 +586,7 @@ function modalAprovacao(cot, ctx, agrupado) {
   const corpoHtml = agrupado.map(([item, ofertas]) => `
     <div class="cartao" style="box-shadow:none;margin-bottom:12px">
       <h3>${ui.esc(item.sku || '')} ${ui.esc(item.descricao)}</h3>
-      <p class="sub">${ui.num(item.quantidade)} ${ui.esc(item.unidade)}</p>
+      <p class="sub">EAN ${ui.esc(eanDoMapa(eans, item.sku))} · ${ui.num(item.quantidade)} ${ui.esc(item.unidade)}</p>
       <table>
         <tbody>
           ${ofertas.map((o, idx) => `<tr>

@@ -111,7 +111,7 @@ export async function detalhe(raiz, ctx) {
   const [links, produtos] = await Promise.all([
     listar('produto_por_fornecedor', {
       eq: { fornecedor_id: fornecedor.id },
-      select: 'id, produto_id, produtos(sku, descricao, unidade)',
+      select: 'id, produto_id, produtos(sku, ean, descricao, unidade)',
     }),
     listar('produtos', { ordem: 'sku' }),
   ]);
@@ -124,6 +124,7 @@ export async function detalhe(raiz, ctx) {
   const linhas = links.map((l) => `
     <tr>
       <td class="mono">${ui.esc(l.produtos?.sku || '—')}</td>
+      <td class="mono">${ui.esc(l.produtos?.ean || '—')}</td>
       <td>${ui.esc(l.produtos?.descricao || '—')}</td>
       <td>${ui.esc(l.produtos?.unidade || '—')}</td>
       <td class="acoes">
@@ -151,7 +152,7 @@ export async function detalhe(raiz, ctx) {
       </div>
 
       ${links.length ? `<div class="tabela-rolagem"><table>
-        <thead><tr><th>SKU</th><th>Descrição</th><th>Unidade</th><th></th></tr></thead>
+        <thead><tr><th>SKU</th><th>EAN</th><th>Descrição</th><th>Unidade</th><th></th></tr></thead>
         <tbody>${linhas}</tbody>
       </table></div>` : ui.vazio('Este fornecedor ainda não tem produtos vinculados.')}
 
@@ -193,6 +194,7 @@ function modalAdicionar(disponiveis, produtos, fornecedor, ctx) {
         <p class="sub" style="margin:16px 0 8px">…ou cadastre um produto novo e já vincule:</p>
         <div class="grade grade-2">
           ${ui.campoTexto('SKU', 'sku', '', { placeholder: 'ex.: 1234' })}
+          ${ui.campoTexto('EAN', 'ean', '', { placeholder: 'código de barras' })}
           ${ui.campoTexto('Unidade', 'unidade', 'un')}
           ${ui.campoTexto('Descrição', 'descricao', '', { placeholder: 'nome do produto' })}
         </div>
@@ -232,6 +234,7 @@ function modalAdicionar(disponiveis, produtos, fornecedor, ctx) {
             sku,
             descricao,
             unidade: (d.unidade || 'un').trim() || 'un',
+            ean: (d.ean || '').trim() || null,
             origem: 'manual',
           });
           produtoId = novo.id;
@@ -377,6 +380,7 @@ async function modalImportar(ctx) {
         if (['sku', 'codigo', 'cod'].includes(n)) mapa.sku = chave;
         else if (n.startsWith('descri') || n === 'produto' || n === 'item') mapa.descricao = chave;
         else if (['unidade', 'un', 'und', 'um'].includes(n)) mapa.unidade = chave;
+        else if (['ean', 'ean13', 'gtin', 'codigo de barras', 'codigo de barras ean'].includes(n)) mapa.ean = chave;
         else if (['fornecedor', 'razao social', 'nome fantasia', 'nome'].includes(n)) mapa.fornecedor = chave;
         else if (['cnpj', 'cnpj/cpf', 'cpf/cnpj', 'documento', 'cnpj cpf'].includes(n)) mapa.cnpj = chave;
       }
@@ -390,6 +394,7 @@ async function modalImportar(ctx) {
         sku: String(l[mapa.sku] ?? '').trim() || null,
         descricao: mapa.descricao ? String(l[mapa.descricao] ?? '').trim() || null : null,
         unidade: mapa.unidade ? String(l[mapa.unidade] ?? '').trim() || null : null,
+        ean: mapa.ean ? String(l[mapa.ean] ?? '').trim() || null : null,
         fornecedor: mapa.fornecedor ? String(l[mapa.fornecedor] ?? '').trim() || null : null,
         cnpj: mapa.cnpj ? String(l[mapa.cnpj] ?? '').trim() || null : null,
       }));
