@@ -309,9 +309,9 @@ function modalEnvioPedido(p, ctx) {
       ${fornecedor.email ? `
         <div class="linha-acoes" style="margin-top:12px;border-top:1px solid var(--borda);padding-top:12px">
           <span class="sub" style="align-self:center">E-mail para <strong>${ui.esc(fornecedor.email)}</strong>:</span>
-          <a class="botao" target="_blank" rel="noopener" href="${ui.esc(gm)}" data-marcar="email">Gmail</a>
+          <a class="botao botao-primario" target="_blank" rel="noopener" href="${ui.esc(gm)}" data-marcar="email">Gmail</a>
           <a class="botao" target="_blank" rel="noopener" href="${ui.esc(ol)}" data-marcar="email">Outlook</a>
-          <a class="botao" target="_blank" rel="noopener" href="${ui.esc(em)}" data-marcar="email">App de e-mail</a>
+          <a class="botao" target="_blank" rel="noopener" href="${ui.esc(em)}" data-marcar="email">Outro app</a>
           <button type="button" class="botao" id="copiar">Copiar mensagem</button>
         </div>` : '<p class="sub" style="margin-top:12px">Fornecedor sem e-mail cadastrado.</p>'}
       <p class="sub" style="margin-top:10px">Ao abrir o Gmail/Outlook no navegador, a mensagem já vai preenchida — basta clicar em enviar.</p>`,

@@ -543,9 +543,9 @@ async function modalEnvio(cot, ctx) {
                   ${canal === 'whatsapp'
                     ? (wa ? `<a class="botao botao-pequeno" target="_blank" rel="noopener" href="${ui.esc(wa)}">WhatsApp</a>` : '<span class="sub">sem número</span>')
                     : (e.fornecedores?.email
-                      ? `<a class="botao botao-pequeno" target="_blank" rel="noopener" href="${ui.esc(gm)}">Gmail</a>
+                      ? `<a class="botao botao-pequeno botao-primario" target="_blank" rel="noopener" href="${ui.esc(gm)}">Gmail</a>
                          <a class="botao botao-pequeno" target="_blank" rel="noopener" href="${ui.esc(ol)}">Outlook</a>
-                         <a class="botao botao-pequeno" target="_blank" rel="noopener" href="${ui.esc(em)}">App</a>`
+                         <a class="botao botao-pequeno" target="_blank" rel="noopener" href="${ui.esc(em)}">Outro</a>`
                       : '<span class="sub">sem e-mail</span>')}
                 </td>
               </tr>`;
