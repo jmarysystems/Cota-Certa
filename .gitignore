@@ -1,0 +1,20 @@
+# dependências / ambiente
+node_modules/
+.env
+.env.*
+!.env.example
+
+# lixo de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# temporários
+.tmp/
+*.log
+*.zip
