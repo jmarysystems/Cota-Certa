@@ -1,102 +1,76 @@
-# Canal do fornecedor por mensagem (WhatsApp / OpenClaw)
+# Canal do fornecedor por mensagem
 
-Estado atual: **a parte do sistema está pronta e testada**; falta apenas conectar um canal
-que receba as mensagens.
+**Decisão do projeto: o sistema funciona 100% online, sem OpenClaw e sem nenhum processo
+rodando na máquina do cliente.** Este documento registra o que garante isso e o que já está
+pronto caso o canal automático seja retomado um dia.
 
 ---
 
-## 1. O que já funciona
+## 1. O que sustenta o "100% online"
 
-### Interpretador de respostas
+| Peça | Onde roda |
+|---|---|
+| Interface (SPA) | GitHub Pages, com o domínio `www.jmarysystems.com.br` |
+| Banco, autenticação e regras | Supabase (Postgres + Auth + REST/RPC) |
+| Resposta do fornecedor | Link com token, aberto no navegador de qualquer celular |
 
-`assets/parse-resposta.js` transforma a mensagem do fornecedor em itens com valor:
+Nenhum computador precisa estar ligado: o fornecedor responde às 3h da manhã e a cotação é
+gravada do mesmo jeito.
 
-```
-77 = 56,00              SKU-002 - 12.50
-77: R$ 56,00            7891000100103 = 56,00   (casa pelo EAN)
-543 7,00                66 indisponível
-77 = 56,00; 543 = 7,00  (vários na mesma linha)
-```
+## 2. Os dois caminhos de resposta (ambos online)
 
-Testes: `npm test` (17 verificações).
+1. **Link público** — `resposta.html?token=…`, com prazo e bloqueio de duplicidade.
+2. **Colar resposta** — o fornecedor respondeu por WhatsApp ou e-mail? O comprador cola a
+   mensagem na cotação, confere e registra. Roda no navegador, usa o mesmo
+   `fn_responder_cotacao`.
 
-### Botão "Colar resposta"
+O interpretador de texto (`assets/parse-resposta.js`) é o mesmo nos dois e tem testes
+próprios: `npm test`.
 
-Na cotação, quando há fornecedor que ainda não respondeu: escolher o fornecedor, colar a
-mensagem, **Interpretar**, conferir e **Registrar resposta**. Usa a mesma
-`fn_responder_cotacao` do link — prazo e bloqueio de duplicidade continuam valendo.
+## 3. Pronto, mas desligado: a API por telefone
 
-### API do assistente (para qualquer canal)
-
-Migration `20261113090000_api_assistente.sql`, aplicada. Autenticação por uma chave própria
-do assistente, guardada em `config_assistente` (tabela sem acesso por RLS).
+A migration `20261113090000_api_assistente.sql` criou uma interface para um **canal
+hospedado** (não local) operar em nome do fornecedor:
 
 | Função | O que faz |
 |---|---|
-| `fn_assistente_cotacao(p_chave, p_telefone)` | Devolve as cotações abertas daquele telefone, com itens, prazo e código |
-| `fn_assistente_responder(p_chave, p_telefone, p_cotacao_id, p_itens, ...)` | Grava a resposta, desde que o telefone tenha envio naquela cotação |
+| `fn_assistente_cotacao(p_chave, p_telefone)` | Cotações abertas daquele telefone, com itens e prazo |
+| `fn_assistente_responder(p_chave, p_telefone, p_cotacao_id, p_itens, …)` | Grava a resposta, se o telefone tiver envio naquela cotação |
 
-Detalhes:
+- autenticação por uma chave própria, guardada em `config_assistente` (sem acesso por RLS);
+- telefone comparado só pelos dígitos (tolera `+55` e o 9º dígito);
+- delega para `fn_responder_cotacao`, então prazo e duplicidade continuam valendo;
+- se dois fornecedores tiverem o mesmo telefone, a gravação **recusa** em vez de gravar no
+  cadastro errado.
 
-- o telefone é comparado **só pelos dígitos**, tolerando `+55` e o 9º dígito;
-- se dois cadastros tiverem o mesmo telefone, a consulta devolve as cotações de ambos e a
-  gravação **recusa** com "telefone ambíguo" — melhor falhar do que gravar no fornecedor
-  errado;
-- a gravação delega para `fn_responder_cotacao`, então prazo vencido e resposta duplicada
-  continuam bloqueados;
-- chave errada devolve `42501`.
+Chave: `select chave from public.config_assistente where id = 1;`
 
-**Como pegar a chave** (só o administrador, pelo SQL Editor):
+Enquanto não houver canal, essas funções ficam sem uso — e sem risco, porque exigem a chave.
 
-```sql
-select chave from public.config_assistente where id = 1;
+## 4. Se um dia o canal automático for retomado
+
+O caminho compatível com "100% online" é um **webhook no Supabase**, não um programa na
+máquina:
+
+```
+WhatsApp Cloud API ──webhook──► Supabase Edge Function ──► fn_assistente_*
+                                        │
+                                        └──► resposta ao fornecedor
 ```
 
-Rodar de novo o SQL de troca de chave: `update public.config_assistente set chave =
-encode(gen_random_bytes(24),'hex') where id = 1;`
+Passos: criar a Edge Function com `verify_jwt = false`, validar a assinatura do provedor,
+chamar `fn_assistente_cotacao` para montar a pergunta e `fn_assistente_responder` para
+gravar. Nada disso exige servidor próprio.
 
-### Skill do OpenClaw
+## 5. O que evitar
 
-`openclaw/skills/cotacao-fornecedor/SKILL.md` — instruções completas: consultar a cotação,
-pedir os preços, interpretar, confirmar e gravar, com as regras de segurança (identidade
-pelo telefone, não gravar sem confirmação, não revelar preços de terceiros).
+- Rodar Gateway ou assistente no PC do escritório: quebra a disponibilidade e vira ponto
+  único de falha.
+- Deixar qualquer serviço exposto na internet sem autenticação.
 
-Para instalar: copiar a pasta `cotacao-fornecedor` para o diretório de skills do OpenClaw e
-definir a variável `COTA_CERTA_CHAVE` com a chave acima + a chave publicável do Supabase.
+## 6. Segurança
 
----
-
-## 2. O que falta: o canal
-
-Um runtime sempre ligado recebendo as mensagens. Duas rotas:
-
-| Rota | O que precisa |
-|---|---|
-| **OpenClaw** | Gateway rodando (Node 24+) e o canal WhatsApp pareado por QR code |
-| **WhatsApp Cloud API** | conta Meta Business, número dedicado, token e webhook público (Supabase Edge Function) |
-
-Situação nesta máquina: o **OpenClaw Companion** está instalado (`%LOCALAPPDATA%\OpenClawTray`),
-mas o assistente de boas-vindas não foi concluído e o Gateway não está rodando. O `wsl.exe`
-responde **"Acesso negado"** para este usuário, então a opção "WSL Gateway" do assistente
-tende a falhar; o caminho alternativo é rodar o Gateway no Node do Windows.
-
----
-
-## 3. Segurança
-
-- identidade decidida no banco (telefone ↔ fornecedor), nunca pelo texto da mensagem;
-- a chave do assistente dá acesso a **duas funções**, não ao banco inteiro — não use
-  `service_role`;
-- a skill não pode gravar sem confirmação explícita do fornecedor;
+- identidade do fornecedor é decidida **no banco** (telefone ↔ cadastro), nunca pelo texto;
+- a chave do assistente dá acesso a duas funções, não ao banco — não usar `service_role`;
 - mensagem recebida é entrada não confiável: nada de executar instrução vinda do texto;
-- se o Gateway for exposto na internet, leia antes
-  <https://docs.openclaw.ai/gateway/security>.
-
----
-
-## 4. Ordem sugerida
-
-1. ✅ Interpretador, "Colar resposta" e API por telefone.
-2. Conectar o canal (Gateway + WhatsApp) e definir `COTA_CERTA_CHAVE`.
-3. Instalar a skill e testar com um fornecedor de verdade.
-4. Automatizar envio e cobrança de prazo (`vw_cotacao_fornecedor_status` já dá os dados).
+- o `anon` continua sem enxergar tabela alguma; o fornecedor só entra pelo token.

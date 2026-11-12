@@ -128,7 +128,7 @@ assets/
     vinculos.js            produtos por fornecedor (importação por arquivo)
     pedidos.js             pedidos, recebimento, NF e impressão
 docs/TABELAS.md            tabelas e matriz de permissões
-docs/ASSISTENTE.md         canal do fornecedor por mensagem (OpenClaw / WhatsApp)
+docs/ASSISTENTE.md         canal do fornecedor por mensagem (API pronta, canal futuro)
 supabase/migrations/       DDL versionado (aplicar na ordem dos nomes)
 tools/                     utilitários de manutenção (Python, opcionais)
 ```
