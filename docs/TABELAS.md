@@ -159,6 +159,10 @@ Um vencedor por item, no formato que você descreveu.
 | `status` | text | `gerado`\|`enviado`\|`confirmado`\|`entregue`\|`cancelado` |
 | `canal_envio` | text | `email` \| `whatsapp` |
 | `enviado_em`, `enviado_para` | | data e destinatário do envio |
+| **`recebido`** | boolean | *novo* — se o pedido já foi recebido (padrão `false`) |
+| **`recebido_em`** | timestamptz | *novo* — data do recebimento |
+| **`nota_fiscal`** | text | *novo* — número da nota fiscal recebida (não pode ser vazio) |
+| **`nota_fiscal_em`** | timestamptz | *novo* — quando a NF foi registrada |
 | `observacao`, `criado_por`, `criado_em` | | |
 
 ### 2.13 `pedido_itens` — *nova*
@@ -235,6 +239,8 @@ Ambas com `security_invoker = true`, então respeitam o RLS de quem consulta.
 7. Aprovação          fn_aprovar_cotacao  → cotacoes_aprovadas
 8. Pedidos            fn_gerar_pedidos    → pedidos_gerados + pedido_itens
 9. Envio do pedido    WhatsApp/e-mail ao fornecedor, status do pedido → enviado
+10. Recebimento       marca recebido (status → entregue) e registra o número da NF
+11. Impressão         layout A4 com dados do fornecedor, itens, totais, NF e assinatura
 ```
 
 ---

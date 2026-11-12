@@ -304,9 +304,67 @@ input[type="checkbox"], input[type="radio"] { width: auto; }
   .topbar { padding: 12px 16px; }
 }
 
+/* ---------- impressão do pedido ---------- */
+.area-impressao { display: none; color: #000; font-size: 10.5pt; }
+
+.area-impressao .print-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  border-bottom: 2px solid #000;
+  padding-bottom: 10px;
+  margin-bottom: 6px;
+}
+.area-impressao h1 { font-size: 17pt; margin: 0 0 6px; letter-spacing: .5px; }
+.area-impressao h2 {
+  font-size: 10pt;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin: 18px 0 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #888;
+}
+.area-impressao .print-linha { margin: 2px 0; }
+.area-impressao .print-grade {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 28px;
+}
+.area-impressao .print-grade span { color: #333; }
+.area-impressao table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10pt;
+}
+.area-impressao th,
+.area-impressao td {
+  border: 1px solid #444;
+  padding: 5px 7px;
+  text-align: left;
+  vertical-align: top;
+}
+.area-impressao thead th { background: #eee; font-size: 9pt; text-transform: uppercase; }
+.area-impressao tfoot th { background: #f4f4f4; }
+.area-impressao .num { text-align: right; font-variant-numeric: tabular-nums; }
+.area-impressao .print-rodape {
+  display: flex;
+  gap: 48px;
+  margin-top: 40px;
+  font-size: 10pt;
+}
+.area-impressao .print-rodape > div { flex: 1; }
+.area-impressao .print-observacao {
+  margin-top: 26px;
+  font-size: 8.5pt;
+  color: #555;
+  border-top: 1px solid #ccc;
+  padding-top: 6px;
+}
+
 @media print {
-  .sidebar, .topbar .acoes, .no-print { display: none !important; }
-  .app { display: block; }
+  #app { display: none !important; }
+  .area-impressao { display: block !important; }
   body { background: #fff; }
-  .cartao { box-shadow: none; border-color: #ccc; }
+  @page { size: A4; margin: 14mm; }
 }
