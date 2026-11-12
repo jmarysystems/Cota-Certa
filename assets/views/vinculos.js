@@ -47,7 +47,10 @@ export async function lista(raiz, ctx) {
     <div class="cartao">
       <div class="cartao-topo">
         <h2>${fornecedores.length} fornecedor(es)</h2>
-        ${ctx.admin ? '<button type="button" id="importar">Importar arquivo</button>' : ''}
+        <div class="linha-acoes">
+          ${ctx.admin ? '<button type="button" class="botao-primario" id="novo-vinculo">Adicionar vínculo</button>' : ''}
+          ${ctx.admin ? '<button type="button" id="importar">Importar arquivo</button>' : ''}
+        </div>
       </div>
       <label class="campo" style="max-width:340px">
         <span>Filtrar por fornecedor, CNPJ ou contato</span>
@@ -75,6 +78,9 @@ export async function lista(raiz, ctx) {
 
   const importar = raiz.querySelector('#importar');
   if (importar) importar.addEventListener('click', () => modalImportar(ctx));
+
+  const novoVinculo = raiz.querySelector('#novo-vinculo');
+  if (novoVinculo) novoVinculo.addEventListener('click', () => modalNovoVinculo(ctx));
 
   for (const b of raiz.querySelectorAll('[data-excluir]')) {
     b.addEventListener('click', async () => {
@@ -140,7 +146,7 @@ export async function detalhe(raiz, ctx) {
         </div>
         <div class="linha-acoes">
           <a class="botao" href="#/vinculos">Voltar</a>
-          ${ctx.admin && disponiveis.length ? '<button type="button" class="botao-primario" id="adicionar">Adicionar produto</button>' : ''}
+          ${ctx.admin ? '<button type="button" class="botao-primario" id="adicionar">Adicionar produto</button>' : ''}
         </div>
       </div>
 
@@ -156,7 +162,7 @@ export async function detalhe(raiz, ctx) {
 
   const adicionar = raiz.querySelector('#adicionar');
   if (adicionar) {
-    adicionar.addEventListener('click', () => modalAdicionar(disponiveis, fornecedor, ctx));
+    adicionar.addEventListener('click', () => modalAdicionar(disponiveis, produtos, fornecedor, ctx));
   }
 
   for (const b of raiz.querySelectorAll('[data-excluir-item]')) {
@@ -173,33 +179,146 @@ export async function detalhe(raiz, ctx) {
   }
 }
 
-function modalAdicionar(disponiveis, fornecedor, ctx) {
+function modalAdicionar(disponiveis, produtos, fornecedor, ctx) {
   const opcoes = disponiveis.map((p) => ({ valor: p.id, rotulo: `${p.sku} — ${p.descricao}` }));
 
   const { fechar, corpo } = ui.modal({
     titulo: `Adicionar produto — ${fornecedor.razao_social}`,
+    largura: '620px',
     corpo: `
       <form id="form-adicionar">
-        ${ui.campoSelect('Produto', 'produto_id', opcoes, '', { obrigatorio: true, vazio: '—' })}
-        <div class="linha-acoes">
+        ${disponiveis.length
+          ? ui.campoSelect('Produto já cadastrado', 'produto_id', opcoes, '', { vazio: '— selecione —' })
+          : '<div class="aviso">Todos os produtos cadastrados já estão vinculados a este fornecedor.</div>'}
+        <p class="sub" style="margin:16px 0 8px">…ou cadastre um produto novo e já vincule:</p>
+        <div class="grade grade-2">
+          ${ui.campoTexto('SKU', 'sku', '', { placeholder: 'ex.: 1234' })}
+          ${ui.campoTexto('Unidade', 'unidade', 'un')}
+          ${ui.campoTexto('Descrição', 'descricao', '', { placeholder: 'nome do produto' })}
+        </div>
+        <div class="linha-acoes" style="margin-top:8px">
           <button type="submit" class="botao-primario">Adicionar</button>
           <button type="button" id="cancelar">Cancelar</button>
         </div>
-      </form>
-      <p class="sub" style="margin-top:10px">Para cadastrar um produto novo, use a tela <strong>Produtos</strong>.</p>`,
+      </form>`,
   });
 
   corpo.querySelector('#cancelar').addEventListener('click', fechar);
   corpo.querySelector('#form-adicionar').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const d = ui.dadosDoForm(ev.target);
+    const sku = (d.sku || '').trim();
+    const descricao = (d.descricao || '').trim();
+
     try {
+      let produtoId = d.produto_id;
+
+      if (!produtoId) {
+        if (!sku && !descricao) {
+          throw new Error('Escolha um produto existente ou informe SKU e descrição.');
+        }
+        if (!sku || !descricao) {
+          throw new Error('Para cadastrar um produto novo, informe SKU e descrição.');
+        }
+
+        const existente = produtos.find((p) => normaliza(p.sku) === normaliza(sku));
+        if (existente) {
+          if (!disponiveis.some((p) => p.id === existente.id)) {
+            throw new Error(`O produto ${existente.sku} já está vinculado a este fornecedor.`);
+          }
+          produtoId = existente.id;
+        } else {
+          const novo = await criar('produtos', {
+            sku,
+            descricao,
+            unidade: (d.unidade || 'un').trim() || 'un',
+            origem: 'manual',
+          });
+          produtoId = novo.id;
+        }
+      }
+
       await criar('produto_por_fornecedor', {
-        produto_id: d.produto_id,
+        produto_id: produtoId,
         fornecedor_id: fornecedor.id,
       });
       fechar();
       ui.toast('Produto vinculado.');
+      ctx.recarregar();
+    } catch (erro) { ui.toast(erro.message, 'erro'); }
+  });
+}
+
+// =====================================================================
+// Vínculo avulso, direto da lista (fornecedor + produto)
+// =====================================================================
+async function modalNovoVinculo(ctx) {
+  const [fornecedores, produtos, links] = await Promise.all([
+    listar('fornecedores', { ordem: 'razao_social' }),
+    listar('produtos', { ordem: 'sku' }),
+    listar('produto_por_fornecedor', { select: 'fornecedor_id, produto_id' }),
+  ]);
+
+  if (!fornecedores.length) {
+    ui.toast('Cadastre um fornecedor antes de criar vínculos.', 'erro');
+    return;
+  }
+  if (!produtos.length) {
+    ui.toast('Cadastre ou importe produtos antes de criar vínculos.', 'erro');
+    return;
+  }
+
+  const vinculados = new Set(links.map((l) => `${l.fornecedor_id}:${l.produto_id}`));
+
+  const { fechar, corpo } = ui.modal({
+    titulo: 'Adicionar vínculo',
+    corpo: `
+      <form id="form-vinculo">
+        ${ui.campoSelect('Fornecedor', 'fornecedor_id',
+          fornecedores.map((f) => ({ valor: f.id, rotulo: f.razao_social })),
+          '', { obrigatorio: true, vazio: '— selecione —' })}
+        <div id="campo-produto"></div>
+        <div class="linha-acoes">
+          <button type="submit" class="botao-primario">Adicionar</button>
+          <button type="button" id="cancelar">Cancelar</button>
+        </div>
+      </form>`,
+  });
+
+  const form = corpo.querySelector('#form-vinculo');
+  const campoProduto = corpo.querySelector('#campo-produto');
+
+  function renderProdutos() {
+    const fornecedorId = form.fornecedor_id.value;
+    if (!fornecedorId) {
+      campoProduto.innerHTML = '<p class="sub">Escolha o fornecedor para ver os produtos livres.</p>';
+      return;
+    }
+    const livres = produtos.filter((p) => !vinculados.has(`${fornecedorId}:${p.id}`));
+    campoProduto.innerHTML = livres.length
+      ? ui.campoSelect('Produto', 'produto_id',
+          livres.map((p) => ({ valor: p.id, rotulo: `${p.sku} — ${p.descricao}` })),
+          '', { obrigatorio: true, vazio: '— selecione —' })
+      : '<div class="aviso">Todos os produtos já estão vinculados a este fornecedor.</div>';
+  }
+
+  form.fornecedor_id.addEventListener('change', renderProdutos);
+  renderProdutos();
+
+  corpo.querySelector('#cancelar').addEventListener('click', fechar);
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const d = ui.dadosDoForm(ev.target);
+    if (!d.fornecedor_id || !d.produto_id) {
+      return ui.toast('Escolha o fornecedor e o produto.', 'erro');
+    }
+    try {
+      await criar('produto_por_fornecedor', {
+        fornecedor_id: d.fornecedor_id,
+        produto_id: d.produto_id,
+      });
+      fechar();
+      ui.toast('Vínculo criado.');
       ctx.recarregar();
     } catch (erro) { ui.toast(erro.message, 'erro'); }
   });
