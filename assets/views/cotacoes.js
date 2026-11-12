@@ -534,13 +534,19 @@ async function modalEnvio(cot, ctx) {
               const texto = mensagem(e);
               const wa = ui.linkWhatsapp(e.fornecedores?.whatsapp, texto);
               const em = ui.linkEmail(e.fornecedores?.email, `Cotação ${cot.codigo}`, texto);
+              const gm = ui.linkGmail(e.fornecedores?.email, `Cotação ${cot.codigo}`, texto);
+              const ol = ui.linkOutlook(e.fornecedores?.email, `Cotação ${cot.codigo}`, texto);
               return `<tr>
                 <td>${ui.esc(e.fornecedores?.razao_social || '—')}</td>
                 <td><button type="button" class="botao-pequeno" data-copiar="${ui.esc(ui.linkPublico(e.token))}">Copiar link</button></td>
                 <td class="linha-acoes">
                   ${canal === 'whatsapp'
                     ? (wa ? `<a class="botao botao-pequeno" target="_blank" rel="noopener" href="${ui.esc(wa)}">WhatsApp</a>` : '<span class="sub">sem número</span>')
-                    : (em ? `<a class="botao botao-pequeno" target="_blank" rel="noopener" href="${ui.esc(em)}">E-mail</a>` : '<span class="sub">sem e-mail</span>')}
+                    : (e.fornecedores?.email
+                      ? `<a class="botao botao-pequeno" target="_blank" rel="noopener" href="${ui.esc(gm)}">Gmail</a>
+                         <a class="botao botao-pequeno" target="_blank" rel="noopener" href="${ui.esc(ol)}">Outlook</a>
+                         <a class="botao botao-pequeno" target="_blank" rel="noopener" href="${ui.esc(em)}">App</a>`
+                      : '<span class="sub">sem e-mail</span>')}
                 </td>
               </tr>`;
             }).join('')}

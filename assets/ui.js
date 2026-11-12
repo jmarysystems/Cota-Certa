@@ -162,6 +162,19 @@ export function linkEmail(email, assunto, texto) {
   return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`;
 }
 
+// Alternativas ao mailto: funcionam no navegador, sem cliente de e-mail instalado.
+export function linkGmail(email, assunto, texto) {
+  if (!email) return null;
+  const p = new URLSearchParams({ view: 'cm', fs: '1', to: email, su: assunto, body: texto });
+  return `https://mail.google.com/mail/?${p.toString()}`;
+}
+
+export function linkOutlook(email, assunto, texto) {
+  if (!email) return null;
+  const p = new URLSearchParams({ to: email, subject: assunto, body: texto });
+  return `https://outlook.office.com/mail/deeplink/compose?${p.toString()}`;
+}
+
 export function dadosDoForm(form) {
   const dados = {};
   for (const el of form.elements) {

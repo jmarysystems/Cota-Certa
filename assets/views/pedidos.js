@@ -290,6 +290,8 @@ function modalEnvioPedido(p, ctx) {
 
   const wa = ui.linkWhatsapp(fornecedor.whatsapp, texto('whatsapp'));
   const em = ui.linkEmail(fornecedor.email, `Pedido ${p.numero}`, texto('email'));
+  const gm = ui.linkGmail(fornecedor.email, `Pedido ${p.numero}`, texto('email'));
+  const ol = ui.linkOutlook(fornecedor.email, `Pedido ${p.numero}`, texto('email'));
 
   const { fechar, corpo } = ui.modal({
     titulo: `Enviar pedido ${p.numero}`,
@@ -302,13 +304,32 @@ function modalEnvioPedido(p, ctx) {
       </label>
       <div class="linha-acoes">
         ${wa ? `<a class="botao botao-primario" target="_blank" rel="noopener" href="${ui.esc(wa)}" data-marcar="whatsapp">Enviar por WhatsApp</a>` : '<span class="sub">Fornecedor sem WhatsApp cadastrado.</span>'}
-        ${em ? `<a class="botao" target="_blank" rel="noopener" href="${ui.esc(em)}" data-marcar="email">Enviar por e-mail</a>` : '<span class="sub">Fornecedor sem e-mail cadastrado.</span>'}
         <button type="button" id="fechar">Fechar</button>
       </div>
-      <p class="sub" style="margin-top:10px">Ao abrir o aplicativo, o pedido é marcado como enviado.</p>`,
+      ${fornecedor.email ? `
+        <div class="linha-acoes" style="margin-top:12px;border-top:1px solid var(--borda);padding-top:12px">
+          <span class="sub" style="align-self:center">E-mail para <strong>${ui.esc(fornecedor.email)}</strong>:</span>
+          <a class="botao" target="_blank" rel="noopener" href="${ui.esc(gm)}" data-marcar="email">Gmail</a>
+          <a class="botao" target="_blank" rel="noopener" href="${ui.esc(ol)}" data-marcar="email">Outlook</a>
+          <a class="botao" target="_blank" rel="noopener" href="${ui.esc(em)}" data-marcar="email">App de e-mail</a>
+          <button type="button" class="botao" id="copiar">Copiar mensagem</button>
+        </div>` : '<p class="sub" style="margin-top:12px">Fornecedor sem e-mail cadastrado.</p>'}
+      <p class="sub" style="margin-top:10px">Ao abrir o Gmail/Outlook no navegador, a mensagem já vai preenchida — basta clicar em enviar.</p>`,
   });
 
   corpo.querySelector('#fechar').addEventListener('click', fechar);
+
+  const copiar = corpo.querySelector('#copiar');
+  if (copiar) {
+    copiar.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(texto('email'));
+        ui.toast('Mensagem copiada.');
+      } catch (_) {
+        window.prompt('Copie a mensagem:', texto('email'));
+      }
+    });
+  }
 
   for (const a of corpo.querySelectorAll('[data-marcar]')) {
     a.addEventListener('click', async () => {
