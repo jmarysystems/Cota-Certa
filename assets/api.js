@@ -28,9 +28,12 @@ export function traduzErro(erro) {
 export const soDigitos = (v) => String(v ?? '').replace(/\D/g, '');
 export const emailDoLogin = (doc) => `${soDigitos(doc)}@${LOGIN_DOMAIN}`;
 
-export async function entrar(documento, senha) {
+export async function entrar(documentoOuEmail, senha) {
+  const entrada = String(documentoOuEmail ?? '').trim();
+  // Aceita CPF/CNPJ (vira <digitos>@dominio) ou um e-mail completo.
+  const email = entrada.includes('@') ? entrada.toLowerCase() : emailDoLogin(entrada);
   const { data, error } = await sb.auth.signInWithPassword({
-    email: emailDoLogin(documento),
+    email,
     password: senha,
   });
   if (error) throw new Error(traduzErro(error));

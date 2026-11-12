@@ -18,11 +18,11 @@ function telaLogin(mensagem = '') {
       <form class="cartao-login" id="form-login" autocomplete="on">
         <div class="marca"><span class="marca-icone">◫</span>${ui.esc(NOME_SISTEMA)}</div>
         <h1>Entrar</h1>
-        <p class="sub">Acesso com CPF/CNPJ e senha.</p>
+        <p class="sub">Acesso com CPF/CNPJ (ou e-mail) e senha.</p>
         ${mensagem ? `<div class="aviso">${ui.esc(mensagem)}</div>` : ''}
         <label class="campo">
-          <span>CPF ou CNPJ</span>
-          <input name="documento" inputmode="numeric" autocomplete="username" required autofocus>
+          <span>CPF/CNPJ ou e-mail</span>
+          <input name="documento" autocomplete="username" required autofocus>
         </label>
         <label class="campo">
           <span>Senha</span>

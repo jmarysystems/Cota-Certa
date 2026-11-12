@@ -1,5 +1,5 @@
 // Usuários: perfis de acesso (Administrador do Sistema, Administrador, Leitura, Fornecedor).
-import { listar, criar, atualizar, excluir, criarLogin } from '../api.js';
+import { listar, criar, atualizar, excluir, criarLogin, rpc } from '../api.js';
 import * as ui from '../ui.js';
 
 export async function lista(raiz, ctx) {
@@ -89,8 +89,8 @@ function modalNovo(fornecedores, ctx) {
       </form>
       <div class="aviso" style="margin-top:12px">
         O login é criado no Supabase Auth com a identidade
-        <span class="mono">&lt;CPF&gt;@cotacao.app</span>. É preciso ter
-        <em>Confirm email</em> desligado no painel (Authentication → Providers → Email).
+        <span class="mono">&lt;CPF&gt;@cotacao.app</span> e já sai confirmado —
+        o usuário entra direto com o CPF e a senha informados aqui.
       </div>`,
   });
 
@@ -103,6 +103,12 @@ function modalNovo(fornecedores, ctx) {
     botao.textContent = 'Criando…';
     try {
       const user = await criarLogin(d.cpf_cnpj, d.senha);
+      // O projeto mantém "Confirm email" ligado: sem isto o usuário não entra.
+      try {
+        await rpc('fn_confirmar_usuario', { p_auth_user_id: user.id });
+      } catch (erroConfirmacao) {
+        console.warn('Não foi possível confirmar o e-mail:', erroConfirmacao.message);
+      }
       await criar('usuarios', {
         auth_user_id: user.id,
         nome: d.nome,
