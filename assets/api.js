@@ -96,6 +96,14 @@ export async function excluir(tabela, id) {
   if (error) throw new Error(traduzErro(error));
 }
 
+// Exclui vários registros por filtro (ex.: todos os vínculos de um fornecedor).
+export async function excluirOnde(tabela, filtro) {
+  let q = sb.from(tabela).delete();
+  for (const [campo, valor] of Object.entries(filtro)) q = q.eq(campo, valor);
+  const { error } = await q;
+  if (error) throw new Error(traduzErro(error));
+}
+
 export async function rpc(nome, args = {}) {
   const { data, error } = await sb.rpc(nome, args);
   if (error) throw new Error(traduzErro(error));

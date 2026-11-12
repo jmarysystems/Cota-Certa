@@ -133,7 +133,10 @@ async function navegar() {
     if (segmento === 'pedidos') return await pedidos.lista(raiz, ctx);
     if (segmento === 'fornecedores') return await cadastros.fornecedores(raiz, ctx);
     if (segmento === 'produtos') return await cadastros.produtos(raiz, ctx);
-    if (segmento === 'vinculos') return await vinculos.lista(raiz, ctx);
+    if (segmento === 'vinculos') {
+      if (id) return await vinculos.detalhe(raiz, ctx);
+      return await vinculos.lista(raiz, ctx);
+    }
     if (segmento === 'listas') return await cadastros.listas(raiz, ctx);
     if (segmento === 'usuarios') return await usuarios.lista(raiz, ctx);
     if (segmento === 'cotacoes') {

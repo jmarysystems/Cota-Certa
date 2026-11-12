@@ -1,38 +1,44 @@
-// Produtos por fornecedor: quem fornece qual SKU, com importação por arquivo.
-import { listar, criar, atualizar, excluir, rpc, traduzErro } from '../api.js';
+// Produtos por fornecedor: lista por fornecedor e edição dos itens de cada um.
+import { listar, buscar, criar, excluir, excluirOnde, rpc } from '../api.js';
 import * as ui from '../ui.js';
 
 const normaliza = (s) => String(s ?? '').toLowerCase().normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '').trim();
 
+// =====================================================================
+// Lista: um fornecedor por linha, com a quantidade de produtos vinculados
+// =====================================================================
 export async function lista(raiz, ctx) {
   ctx.setTitulo('Produtos por fornecedor');
 
-  const [vinculos, fornecedores, produtos] = await Promise.all([
-    listar('produto_por_fornecedor', {
-      select: 'id, produto_id, fornecedor_id, produtos(sku, descricao, unidade), fornecedores(razao_social)',
-    }),
+  const [fornecedores, links] = await Promise.all([
     listar('fornecedores', { ordem: 'razao_social' }),
-    listar('produtos', { ordem: 'sku' }),
+    listar('produto_por_fornecedor', { select: 'id, fornecedor_id' }),
   ]);
 
-  vinculos.sort((a, b) => {
-    const fa = (a.fornecedores?.razao_social || '').localeCompare(b.fornecedores?.razao_social || '');
-    if (fa !== 0) return fa;
-    return (a.produtos?.sku || '').localeCompare(b.produtos?.sku || '');
-  });
+  const contagem = new Map();
+  for (const l of links) contagem.set(l.fornecedor_id, (contagem.get(l.fornecedor_id) || 0) + 1);
 
-  const linhas = vinculos.map((v) => {
-    const busca = normaliza(`${v.fornecedores?.razao_social} ${v.produtos?.sku} ${v.produtos?.descricao}`);
+  const linhas = fornecedores.map((f) => {
+    const qtd = contagem.get(f.id) || 0;
+    const busca = normaliza(`${f.razao_social} ${f.nome_fantasia} ${f.cnpj_cpf} ${f.contato_nome}`);
     return `
       <tr data-busca="${ui.esc(busca)}">
-        <td>${ui.esc(v.fornecedores?.razao_social || '—')}</td>
-        <td class="mono">${ui.esc(v.produtos?.sku || '—')}</td>
-        <td>${ui.esc(v.produtos?.descricao || '—')}</td>
-        <td>${ui.esc(v.produtos?.unidade || '—')}</td>
+        <td>
+          <strong>${ui.esc(f.razao_social)}</strong>
+          ${f.nome_fantasia ? `<div class="sub">${ui.esc(f.nome_fantasia)}</div>` : ''}
+        </td>
+        <td class="mono">${ui.esc(f.cnpj_cpf || '—')}</td>
+        <td>
+          ${ui.esc(f.contato_nome || '—')}
+          <div class="sub">${ui.esc([f.email, f.whatsapp].filter(Boolean).join(' · ') || '')}</div>
+        </td>
+        <td class="num">${qtd}</td>
+        <td>${f.ativo ? ui.badge('ativo', 'verde') : ui.badge('inativo', 'cinza')}</td>
         <td class="acoes">
-          ${ctx.admin ? `<button type="button" class="botao-pequeno" data-editar="${ui.esc(v.id)}">Editar</button>
-          <button type="button" class="botao-pequeno botao-perigo" data-excluir="${ui.esc(v.id)}">Excluir</button>` : ''}
+          <a class="botao botao-pequeno" href="#/vinculos/${ui.esc(f.id)}">Editar</a>
+          ${ctx.admin ? `<button type="button" class="botao-pequeno botao-perigo" data-excluir="${ui.esc(f.id)}"
+             ${qtd === 0 ? 'disabled title="Sem itens para excluir"' : ''}>Excluir</button>` : ''}
         </td>
       </tr>`;
   }).join('');
@@ -40,105 +46,168 @@ export async function lista(raiz, ctx) {
   raiz.innerHTML = `
     <div class="cartao">
       <div class="cartao-topo">
-        <h2>${vinculos.length} vínculo(s)</h2>
-        <div class="linha-acoes">
-          ${ctx.admin ? '<button type="button" id="importar">Importar arquivo</button>' : ''}
-          ${ctx.admin ? '<button type="button" class="botao-primario" id="novo">Novo vínculo</button>' : ''}
-        </div>
+        <h2>${fornecedores.length} fornecedor(es)</h2>
+        ${ctx.admin ? '<button type="button" id="importar">Importar arquivo</button>' : ''}
       </div>
       <label class="campo" style="max-width:340px">
-        <span>Filtrar por fornecedor, SKU ou descrição</span>
+        <span>Filtrar por fornecedor, CNPJ ou contato</span>
         <input type="search" id="filtro" placeholder="digite para filtrar…">
       </label>
-      ${vinculos.length ? `<div class="tabela-rolagem"><table id="tabela-vinculos">
-        <thead><tr><th>Fornecedor</th><th>SKU</th><th>Descrição</th><th>Un.</th><th></th></tr></thead>
+      ${fornecedores.length ? `<div class="tabela-rolagem"><table id="tabela-fornecedores">
+        <thead><tr>
+          <th>Fornecedor</th><th>CNPJ/CPF</th><th>Contato</th>
+          <th class="num">Itens</th><th>Situação</th><th></th>
+        </tr></thead>
         <tbody>${linhas}</tbody>
-      </table></div>` : ui.vazio('Nenhum vínculo cadastrado. Importe um arquivo ou crie manualmente.')}
+      </table></div>` : ui.vazio('Nenhum fornecedor cadastrado.')}
+      <p class="sub" style="margin-top:12px">Clique em <strong>Editar</strong> para ver, incluir ou excluir os produtos de cada fornecedor.</p>
     </div>`;
 
   const filtro = raiz.querySelector('#filtro');
   if (filtro) {
     filtro.addEventListener('input', () => {
       const termo = normaliza(filtro.value);
-      for (const tr of raiz.querySelectorAll('#tabela-vinculos tbody tr')) {
+      for (const tr of raiz.querySelectorAll('#tabela-fornecedores tbody tr')) {
         tr.hidden = termo !== '' && !tr.dataset.busca.includes(termo);
       }
     });
   }
 
-  const novo = raiz.querySelector('#novo');
-  if (novo) novo.addEventListener('click', () => modalVinculo(null, { fornecedores, produtos }, ctx));
-
   const importar = raiz.querySelector('#importar');
   if (importar) importar.addEventListener('click', () => modalImportar(ctx));
 
-  for (const b of raiz.querySelectorAll('[data-editar]')) {
-    b.addEventListener('click', () => {
-      const v = vinculos.find((x) => x.id === b.dataset.editar);
-      modalVinculo(v, { fornecedores, produtos }, ctx);
-    });
-  }
-
   for (const b of raiz.querySelectorAll('[data-excluir]')) {
     b.addEventListener('click', async () => {
-      if (!window.confirm('Remover este vínculo?')) return;
+      const f = fornecedores.find((x) => x.id === b.dataset.excluir);
+      const qtd = contagem.get(f.id) || 0;
+      if (!qtd) return;
+      if (!window.confirm(`Excluir os ${qtd} item(ns) de "${f.razao_social}"?\n\nOs produtos e o fornecedor continuam cadastrados — só os vínculos são removidos.`)) return;
       try {
-        await excluir('produto_por_fornecedor', b.dataset.excluir);
-        ui.toast('Vínculo removido.');
+        await excluirOnde('produto_por_fornecedor', { fornecedor_id: f.id });
+        ui.toast(`${qtd} vínculo(s) removido(s).`);
         ctx.recarregar();
       } catch (erro) { ui.toast(erro.message, 'erro'); }
     });
   }
 }
 
-function modalVinculo(v, { fornecedores, produtos }, ctx) {
-  if (!fornecedores.length) {
-    ui.toast('Cadastre um fornecedor antes de criar vínculos.', 'erro');
+// =====================================================================
+// Detalhe: os itens de um fornecedor
+// =====================================================================
+export async function detalhe(raiz, ctx) {
+  const fornecedor = await buscar('fornecedores', ctx.id);
+  if (!fornecedor) {
+    raiz.innerHTML = ui.vazio('Fornecedor não encontrado.');
     return;
   }
-  if (!produtos.length) {
-    ui.toast('Cadastre ou importe produtos antes de criar vínculos.', 'erro');
-    return;
+  ctx.setTitulo(`Itens de ${fornecedor.razao_social}`);
+
+  const [links, produtos] = await Promise.all([
+    listar('produto_por_fornecedor', {
+      eq: { fornecedor_id: fornecedor.id },
+      select: 'id, produto_id, produtos(sku, descricao, unidade)',
+    }),
+    listar('produtos', { ordem: 'sku' }),
+  ]);
+
+  links.sort((a, b) => (a.produtos?.sku || '').localeCompare(b.produtos?.sku || ''));
+
+  const jaVinculados = new Set(links.map((l) => l.produto_id));
+  const disponiveis = produtos.filter((p) => !jaVinculados.has(p.id));
+
+  const linhas = links.map((l) => `
+    <tr>
+      <td class="mono">${ui.esc(l.produtos?.sku || '—')}</td>
+      <td>${ui.esc(l.produtos?.descricao || '—')}</td>
+      <td>${ui.esc(l.produtos?.unidade || '—')}</td>
+      <td class="acoes">
+        ${ctx.admin ? `<button type="button" class="botao-pequeno botao-perigo" data-excluir-item="${ui.esc(l.id)}">Excluir</button>` : ''}
+      </td>
+    </tr>`).join('');
+
+  raiz.innerHTML = `
+    <div class="cartao">
+      <div class="cartao-topo">
+        <div>
+          <h2>${ui.esc(fornecedor.razao_social)}</h2>
+          <p class="sub">
+            ${ui.esc(fornecedor.cnpj_cpf || 'sem CNPJ/CPF')}
+            ${fornecedor.contato_nome ? ` · ${ui.esc(fornecedor.contato_nome)}` : ''}
+            ${fornecedor.email ? ` · ${ui.esc(fornecedor.email)}` : ''}
+            ${fornecedor.whatsapp ? ` · ${ui.esc(fornecedor.whatsapp)}` : ''}
+            · ${links.length} item(ns)
+          </p>
+        </div>
+        <div class="linha-acoes">
+          <a class="botao" href="#/vinculos">Voltar</a>
+          ${ctx.admin && disponiveis.length ? '<button type="button" class="botao-primario" id="adicionar">Adicionar produto</button>' : ''}
+        </div>
+      </div>
+
+      ${links.length ? `<div class="tabela-rolagem"><table>
+        <thead><tr><th>SKU</th><th>Descrição</th><th>Unidade</th><th></th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table></div>` : ui.vazio('Este fornecedor ainda não tem produtos vinculados.')}
+
+      ${ctx.admin && !disponiveis.length && produtos.length
+        ? '<p class="sub" style="margin-top:12px">Todos os produtos cadastrados já estão vinculados a este fornecedor.</p>'
+        : ''}
+    </div>`;
+
+  const adicionar = raiz.querySelector('#adicionar');
+  if (adicionar) {
+    adicionar.addEventListener('click', () => modalAdicionar(disponiveis, fornecedor, ctx));
   }
 
-  const editando = !!v;
-  const opcoesFornecedor = fornecedores.map((f) => ({ valor: f.id, rotulo: f.razao_social }));
-  const opcoesProduto = produtos.map((p) => ({
-    valor: p.id,
-    rotulo: `${p.sku} — ${p.descricao}`,
-  }));
+  for (const b of raiz.querySelectorAll('[data-excluir-item]')) {
+    b.addEventListener('click', async () => {
+      const link = links.find((l) => l.id === b.dataset.excluirItem);
+      const nome = link?.produtos?.sku ? `${link.produtos.sku} — ${link.produtos.descricao}` : 'este item';
+      if (!window.confirm(`Excluir ${nome} da lista deste fornecedor?`)) return;
+      try {
+        await excluir('produto_por_fornecedor', b.dataset.excluirItem);
+        ui.toast('Item removido.');
+        ctx.recarregar();
+      } catch (erro) { ui.toast(erro.message, 'erro'); }
+    });
+  }
+}
+
+function modalAdicionar(disponiveis, fornecedor, ctx) {
+  const opcoes = disponiveis.map((p) => ({ valor: p.id, rotulo: `${p.sku} — ${p.descricao}` }));
 
   const { fechar, corpo } = ui.modal({
-    titulo: editando ? 'Editar vínculo' : 'Novo vínculo',
+    titulo: `Adicionar produto — ${fornecedor.razao_social}`,
     corpo: `
-      <form id="form-vinculo">
-        ${ui.campoSelect('Fornecedor', 'fornecedor_id', opcoesFornecedor,
-          v?.fornecedor_id, { obrigatorio: true, vazio: '—' })}
-        ${ui.campoSelect('Produto', 'produto_id', opcoesProduto,
-          v?.produto_id, { obrigatorio: true, vazio: '—' })}
+      <form id="form-adicionar">
+        ${ui.campoSelect('Produto', 'produto_id', opcoes, '', { obrigatorio: true, vazio: '—' })}
         <div class="linha-acoes">
-          <button type="submit" class="botao-primario">${editando ? 'Salvar' : 'Adicionar'}</button>
+          <button type="submit" class="botao-primario">Adicionar</button>
           <button type="button" id="cancelar">Cancelar</button>
         </div>
-      </form>`,
+      </form>
+      <p class="sub" style="margin-top:10px">Para cadastrar um produto novo, use a tela <strong>Produtos</strong>.</p>`,
   });
 
   corpo.querySelector('#cancelar').addEventListener('click', fechar);
-  corpo.querySelector('#form-vinculo').addEventListener('submit', async (ev) => {
+  corpo.querySelector('#form-adicionar').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const d = ui.dadosDoForm(ev.target);
     try {
-      if (editando) await atualizar('produto_por_fornecedor', v.id, d);
-      else await criar('produto_por_fornecedor', d);
+      await criar('produto_por_fornecedor', {
+        produto_id: d.produto_id,
+        fornecedor_id: fornecedor.id,
+      });
       fechar();
-      ui.toast(editando ? 'Vínculo atualizado.' : 'Vínculo criado.');
+      ui.toast('Produto vinculado.');
       ctx.recarregar();
-    } catch (erro) {
-      ui.toast(erro.message, 'erro');
-    }
+    } catch (erro) { ui.toast(erro.message, 'erro'); }
   });
 }
 
+// =====================================================================
+// Importação por arquivo
+// =====================================================================
 async function modalImportar(ctx) {
   const { fechar, corpo } = ui.modal({
     titulo: 'Importar produtos por fornecedor',
