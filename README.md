@@ -74,9 +74,9 @@ Para publicar sem instalar nada: **Add file → Upload files** e arraste as past
 ## 4. Como usar
 
 ```
+Dashboard     → economia gerada pelas cotações aprovadas, por mês e por fornecedor
 Fornecedores  → cadastre o fornecedor (contato, e-mail, WhatsApp, prazo,
-                tipo/prazo de pagamento)
-Produtos      → cadastre manualmente ou importe uma planilha
+                tipo/prazo de pagamento)Produtos      → cadastre manualmente ou importe uma planilha
 Prod. por fornec. → relacione SKU ↔ fornecedor (manual ou importando planilha);
                 é essa tabela que permite enviar a cotação só a quem fornece os itens
 Listas        → a planilha vira uma lista; os SKUs são sincronizados em Produtos
@@ -118,6 +118,7 @@ assets/
   styles.css
   resposta.js              lógica da página pública
   views/
+    dashboard.js           economia por mês e por fornecedor
     cotacoes.js            lista, criação, detalhe, envio, aprovação, pedidos
     cadastros.js           fornecedores, produtos, importação, listas
     usuarios.js            perfis de acesso

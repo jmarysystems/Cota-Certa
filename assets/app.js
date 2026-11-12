@@ -7,6 +7,7 @@ import * as cadastros from './views/cadastros.js';
 import * as usuarios from './views/usuarios.js';
 import * as pedidos from './views/pedidos.js';
 import * as vinculos from './views/vinculos.js';
+import * as dashboard from './views/dashboard.js';
 
 const app = document.getElementById('app');
 let perfil = null;
@@ -61,6 +62,7 @@ function itensDeMenu() {
     ['#/pedidos', 'Pedidos', '▣'],
   ];
   if (!fornecedor) {
+    itens.unshift(['#/dashboard', 'Dashboard', '▦']);
     itens.push(['#/fornecedores', 'Fornecedores', '◈']);
     itens.push(['#/produtos', 'Produtos', '◧']);
     itens.push(['#/vinculos', 'Prod. por fornec.', '⇄']);
@@ -131,6 +133,7 @@ async function navegar() {
 
   try {
     if (segmento === 'pedidos') return await pedidos.lista(raiz, ctx);
+    if (segmento === 'dashboard') return await dashboard.render(raiz, ctx);
     if (segmento === 'fornecedores') return await cadastros.fornecedores(raiz, ctx);
     if (segmento === 'produtos') return await cadastros.produtos(raiz, ctx);
     if (segmento === 'vinculos') {

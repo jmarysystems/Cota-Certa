@@ -631,7 +631,9 @@ function modalAprovacao(cot, ctx, agrupado) {
         p_itens: automatico ? null : pares,
       });
       fechar();
-      ui.toast(`Aprovação registrada: ${res.itens_aprovados} item(ns), total ${ui.brl(res.total)}.`);
+      const economia = Number(res.economia || 0);
+      ui.toast(`Aprovação registrada: ${res.itens_aprovados} item(ns), total ${ui.brl(res.total)}`
+        + (economia > 0 ? ` · economia de ${ui.brl(economia)}.` : '.'));
       ctx.recarregar();
     } catch (erro) {
       ui.toast(erro.message, 'erro');

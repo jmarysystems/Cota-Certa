@@ -169,6 +169,25 @@ Um vencedor por item, no formato que você descreveu.
 `id`, `pedido_id` (FK), `cotacao_aprovada_id` (FK), `sku`, `descricao`, `quantidade`, `unidade`, `valor_de_custo_do_fornecedor`, `valor_total` (calculado).
 Trigger `trg_recalcula_total_pedido` mantém `pedidos_gerados.valor_total` em sincronia.
 
+### 2.14 `resultados_das_cotacoes` — *nova*
+Guarda a economia gerada por item aprovado, base do **Dashboard**.
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| `id` | uuid | PK |
+| `cotacao_id`, `cotacao_item_id` | uuid | FKs; par único por cotação |
+| `fornecedor_id` | uuid | FK — quem ganhou o item |
+| `sku`, `descricao`, `quantidade`, `unidade` | | cópia do item |
+| `valor_aprovado` | numeric | custo unitário aprovado |
+| `valor_maximo` | numeric | maior oferta recebida para o item |
+| `economia_unitaria` | numeric | calculado: `max(valor_maximo − valor_aprovado, 0)` |
+| `economia_total` | numeric | calculado: `economia_unitaria × quantidade` |
+| `aprovado_em` | timestamptz | quando foi aprovado |
+| `referencia` | date | primeiro dia do mês (America/Sao_Paulo), usado para agrupar |
+
+Preenchida automaticamente por `fn_aprovar_cotacao`; re-aprovar a mesma cotação
+substitui as linhas, sem duplicar.
+
 ---
 
 ## 3. Matriz de permissões
@@ -190,6 +209,7 @@ Legenda: **L** = ler · **E** = editar · **C** = cadastrar · **X** = excluir �
 | `cotacoes_aprovadas` | L E C X | L E C X | L | L\* | — |
 | `pedidos_gerados` | L E C X | L E C X | L | L\* | — |
 | `pedido_itens` | L E C X | L E C X | L | L\* | — |
+| `resultados_das_cotacoes` | L E C X | L E C X | L | L\* | — |
 
 ¹ Exceto a própria linha de `admin_sistema`, que nunca pode ser excluída nem ter o perfil alterado (trigger).
 
@@ -219,7 +239,7 @@ Ambas com `security_invoker = true`, então respeitam o RLS de quem consulta.
 | `fn_registrar_envio(p_cotacao_id, p_fornecedor_id, p_canal, p_status, p_erro, p_mensagem_id)` | Admin | Cria/atualiza o envio, gera o token e marca a cotação como `enviada`. Chamar depois de disparar e-mail/WhatsApp. |
 | `fn_cotacao_publica(p_token)` | Público | Devolve cotação + itens + dados do fornecedor. Marca o envio como `lido`. |
 | `fn_responder_cotacao(p_token, p_empresa, p_itens, p_prazo_entrega, p_pagamento, p_validade, p_observacao)` | Público | Grava a resposta e os itens, calcula o total, marca `respondido` e a cotação como `em_analise`. Bloqueia resposta duplicada. |
-| `fn_aprovar_cotacao(p_cotacao_id, p_itens)` | Admin | Sem `p_itens`: aprova automaticamente o **menor custo por item**. Com `p_itens` (`[{cotacao_item_id, fornecedor_id}]`): respeita sua escolha manual. Grava em `cotacoes_aprovadas` e muda o status para `aprovada`. |
+| `fn_aprovar_cotacao(p_cotacao_id, p_itens)` | Admin | Sem `p_itens`: aprova automaticamente o **menor custo por item**. Com `p_itens` (`[{cotacao_item_id, fornecedor_id}]`): respeita sua escolha manual. Grava em `cotacoes_aprovadas`, recalcula `resultados_das_cotacoes` e devolve `{itens_aprovados, total, economia}`. |
 | `fn_gerar_pedidos(p_cotacao_id)` | Admin | Agrupa as aprovações por fornecedor e cria um `pedidos_gerados` + `pedido_itens` para cada um. Idempotente: não duplica pedido já gerado. |
 | `fn_importar_produtos_por_fornecedor(p_linhas)` | Admin | Recebe as linhas da planilha (SKU, fornecedor/CNPJ, descrição, unidade), casa o fornecedor por CNPJ ou razão social e o produto por SKU (cria o produto se faltar) e grava os vínculos em `produto_por_fornecedor`. Devolve `{vinculados, produtos_criados, sem_fornecedor, linhas_ignoradas}`. |
 | `fn_fornecedores_da_cotacao(p_cotacao_id)` | Admin | Consulta a tabela de vínculos e devolve quais fornecedores atendem os itens da cotação, quantos itens cada um cobre e quais SKUs ficaram sem fornecedor. |
