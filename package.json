@@ -1,0 +1,10 @@
+{
+  "name": "cota-certa",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sistema de cotação com fornecedores (front-end estático + Supabase).",
+  "scripts": {
+    "test": "node tools/test_parse_resposta.mjs"
+  }
+}

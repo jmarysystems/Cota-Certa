@@ -1,5 +1,6 @@
 // Cotações: lista, criação, detalhe com itens, envio, resultado, aprovação e pedidos.
 import { listar, buscar, criar, atualizar, excluir, rpc, mapaEan, eanDoMapa } from '../api.js';
+import { interpretarResposta, paraNumero } from '../parse-resposta.js';
 import * as ui from '../ui.js';
 
 const STATUS_QUE_PERMITE_ENVIO = ['finalizada', 'enviada', 'em_analise'];
@@ -116,12 +117,14 @@ export async function detalhe(raiz, ctx) {
   });
 
   const editavel = ctx.admin && cot.status === 'rascunho';
+  const pendentes = envios.filter((e) => e.status !== 'respondido');
 
   const acoesAdmin = ctx.admin ? `
     ${editavel ? '<button type="button" id="btn-item">Adicionar item</button>' : ''}
     ${editavel ? '<button type="button" id="btn-importar">Importar lista</button>' : ''}
     ${editavel ? '<button type="button" class="botao-primario" id="btn-finalizar">Finalizar</button>' : ''}
     ${ctx.admin && STATUS_QUE_PERMITE_ENVIO.includes(cot.status) ? '<button type="button" class="botao-primario" id="btn-enviar">Enviar aos fornecedores</button>' : ''}
+    ${ctx.admin && pendentes.length && cot.status !== 'cancelada' ? '<button type="button" id="btn-colar">Colar resposta</button>' : ''}
     ${ctx.admin && STATUS_QUE_PERMITE_APROVAR.includes(cot.status) ? '<button type="button" id="btn-aprovar">Aprovar vencedores</button>' : ''}
     ${ctx.admin && cot.status === 'aprovada' ? '<button type="button" class="botao-primario" id="btn-pedidos">Gerar pedidos</button>' : ''}
     <button type="button" class="botao-perigo" id="btn-excluir">Excluir</button>` : '';
@@ -299,6 +302,9 @@ export async function detalhe(raiz, ctx) {
   }
 
   if (botao('#btn-enviar')) botao('#btn-enviar').addEventListener('click', () => modalEnvio(cot, ctx));
+  if (botao('#btn-colar')) {
+    botao('#btn-colar').addEventListener('click', () => modalColarResposta(cot, ctx, pendentes, itens, eans));
+  }
   if (botao('#btn-aprovar')) botao('#btn-aprovar').addEventListener('click', () => modalAprovacao(cot, ctx, agrupado, eans));
 
   if (botao('#btn-pedidos')) {
@@ -561,6 +567,147 @@ async function modalEnvio(cot, ctx) {
       ev.target.disabled = false;
       ev.target.textContent = 'Preparar envios';
     }
+  });
+}
+
+// ---------------------------------------------------------------------
+// Resposta colada de uma mensagem (WhatsApp, e-mail, bilhete)
+// ---------------------------------------------------------------------
+function modalColarResposta(cot, ctx, pendentes, itens, eans) {
+  const itensComEan = itens.map((i) => ({
+    ...i,
+    cotacao_item_id: i.id,
+    ean: eans.get(String(i.sku ?? '').trim().toUpperCase()) || '',
+  }));
+
+  const opcoes = pendentes.map((e) => ({
+    valor: e.fornecedor_id,
+    rotulo: e.fornecedores?.razao_social || 'Fornecedor',
+  }));
+
+  const { fechar, corpo } = ui.modal({
+    titulo: `Colar resposta — ${cot.codigo}`,
+    largura: '780px',
+    corpo: `
+      <p class="sub">Cole a mensagem que o fornecedor enviou. Cada linha precisa do SKU (ou EAN) e do valor —
+        por exemplo <span class="mono">77 = 56,00</span>; use <span class="mono">66 indisponível</span> para o que ele não fornece.</p>
+      <div class="grade grade-2">
+        ${ui.campoSelect('Fornecedor', 'fornecedor_id', opcoes, opcoes[0].valor, { obrigatorio: true })}
+      </div>
+      <label class="campo">
+        <span>Mensagem recebida</span>
+        <textarea name="mensagem" rows="5" placeholder="77 = 56,00&#10;543 = 7,00&#10;66 indisponível"></textarea>
+      </label>
+      <div class="linha-acoes">
+        <button type="button" class="botao-primario" id="interpretar">Interpretar</button>
+        <button type="button" id="cancelar">Cancelar</button>
+      </div>
+      <div id="previa"></div>`,
+  });
+
+  const fornecedorSelect = corpo.querySelector('select[name="fornecedor_id"]');
+  const mensagem = corpo.querySelector('textarea[name="mensagem"]');
+  const previa = corpo.querySelector('#previa');
+
+  corpo.querySelector('#cancelar').addEventListener('click', fechar);
+
+  corpo.querySelector('#interpretar').addEventListener('click', () => {
+    const texto = mensagem.value.trim();
+    if (!texto) return ui.toast('Cole a mensagem do fornecedor.', 'erro');
+
+    const res = interpretarResposta(texto, itensComEan);
+
+    if (!res.linhas.length) {
+      previa.innerHTML = '<div class="aviso">Não encontrei nenhum item. Use o SKU ou o EAN seguido do valor, uma linha por item.</div>';
+      return;
+    }
+
+    previa.innerHTML = `
+      <h3 style="margin-top:18px">Confira antes de registrar</h3>
+      <div class="tabela-rolagem"><table>
+        <thead><tr><th>SKU</th><th>EAN</th><th>Descrição</th><th class="num">Qtd.</th><th class="num">Valor unit.</th><th>Fornecer</th></tr></thead>
+        <tbody>
+          ${res.linhas.map((l) => `<tr>
+            <td class="mono">${ui.esc(l.item.sku || '—')}</td>
+            <td class="mono">${ui.esc(l.item.ean || '—')}</td>
+            <td>${ui.esc(l.item.descricao)}</td>
+            <td class="num">${ui.num(l.item.quantidade)}</td>
+            <td class="num" style="min-width:120px">
+              <input type="text" inputmode="decimal" data-valor="${ui.esc(l.item.cotacao_item_id)}"
+                     value="${l.disponivel ? String(l.valor).replace('.', ',') : ''}"
+                     ${l.disponivel ? '' : 'disabled'} style="text-align:right">
+            </td>
+            <td><input type="checkbox" data-disponivel="${ui.esc(l.item.cotacao_item_id)}" ${l.disponivel ? 'checked' : ''}></td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>
+      ${res.naoEncontrados.length
+        ? `<div class="aviso" style="margin-top:12px">Não reconheci ${res.naoEncontrados.length} linha(s): ${ui.esc(res.naoEncontrados.join(' · '))}</div>`
+        : ''}
+      <div class="linha-acoes" style="margin-top:12px">
+        <button type="button" class="botao-primario" id="registrar">Registrar resposta</button>
+      </div>`;
+
+    for (const cb of corpo.querySelectorAll('[data-disponivel]')) {
+      cb.addEventListener('change', () => {
+        const input = corpo.querySelector(`[data-valor="${cb.dataset.disponivel}"]`);
+        input.disabled = !cb.checked;
+        if (cb.checked && !input.value) input.focus();
+      });
+    }
+
+    corpo.querySelector('#registrar').addEventListener('click', async (ev) => {
+      const enviar = [];
+      let algumDisponivel = false;
+
+      for (const l of res.linhas) {
+        const id = l.item.cotacao_item_id;
+        const marcado = corpo.querySelector(`[data-disponivel="${id}"]`).checked;
+        const valor = paraNumero(corpo.querySelector(`[data-valor="${id}"]`).value);
+
+        if (marcado) {
+          if (valor === null || valor <= 0) {
+            return ui.toast(`Informe o valor do item ${l.item.sku || l.item.descricao}.`, 'erro');
+          }
+          algumDisponivel = true;
+        }
+
+        enviar.push({
+          cotacao_item_id: id,
+          sku: l.item.sku,
+          descricao: l.item.descricao,
+          quantidade: Number(l.item.quantidade),
+          unidade: l.item.unidade,
+          valor_unitario: marcado ? valor : 0,
+          disponivel: marcado,
+        });
+      }
+
+      if (!algumDisponivel) {
+        return ui.toast('Marque ao menos um item que o fornecedor atende.', 'erro');
+      }
+
+      const envio = pendentes.find((e) => e.fornecedor_id === fornecedorSelect.value);
+      if (!envio) return ui.toast('Envio não encontrado para este fornecedor.', 'erro');
+
+      ev.target.disabled = true;
+      ev.target.textContent = 'Registrando…';
+
+      try {
+        const res = await rpc('fn_responder_cotacao', {
+          p_token: envio.token,
+          p_empresa: envio.fornecedores?.razao_social || 'Fornecedor',
+          p_itens: enviar,
+        });
+        fechar();
+        ui.toast(`Resposta registrada: ${res.itens} item(ns), total ${ui.brl(res.total)}.`);
+        ctx.recarregar();
+      } catch (erro) {
+        ui.toast(erro.message, 'erro');
+        ev.target.disabled = false;
+        ev.target.textContent = 'Registrar resposta';
+      }
+    });
   });
 }
 

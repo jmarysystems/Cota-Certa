@@ -83,6 +83,8 @@ Listas        → a planilha vira uma lista; os SKUs são sincronizados em Produ
 Cotações      → nova cotação → adicione itens ou importe uma lista → Finalizar
               → Enviar aos fornecedores (gera link único por fornecedor)
 Link público  → o fornecedor abre resposta.html?token=... e envia a proposta
+Colar resposta → o fornecedor respondeu por WhatsApp/e-mail? cole a mensagem em
+              "Colar resposta": ela vira itens com valor, você confere e registra
 Resultado     → vw_resultado_cotacao marca o menor custo de cada item
 Aprovação     → confirme os vencedores (ou troque manualmente)
 Pedidos       → gere um pedido por fornecedor e envie por WhatsApp/e-mail
@@ -113,6 +115,7 @@ resposta.html              página pública do fornecedor
 assets/
   config.js                URL e chave publicável do Supabase + domínio de login
   api.js                   cliente Supabase, CRUD e RPCs
+  parse-resposta.js        interpreta "77 = 56,00" da mensagem do fornecedor
   ui.js                    formatação, modal, toast, links wa.me/mailto
   app.js                   login e roteador por perfil
   styles.css
@@ -125,6 +128,7 @@ assets/
     vinculos.js            produtos por fornecedor (importação por arquivo)
     pedidos.js             pedidos, recebimento, NF e impressão
 docs/TABELAS.md            tabelas e matriz de permissões
+docs/ASSISTENTE.md         canal do fornecedor por mensagem (OpenClaw / WhatsApp)
 supabase/migrations/       DDL versionado (aplicar na ordem dos nomes)
 tools/                     utilitários de manutenção (Python, opcionais)
 ```
