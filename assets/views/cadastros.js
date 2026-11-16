@@ -117,7 +117,13 @@ function modalFornecedor(f, ctx) {
 // =====================================================================
 export async function produtos(raiz, ctx) {
   ctx.setTitulo('Produtos');
-  const dados = await listar('produtos', { ordem: 'sku' });
+  const [dados, categorias, subcategorias, familias] = await Promise.all([
+    listar('produtos', { ordem: 'sku' }),
+    listar('arm_categorias', { ordem: 'descricao' }),
+    listar('arm_subcategorias', { ordem: 'descricao' }),
+    listar('arm_familias', { ordem: 'descricao' }),
+  ]);
+  const listas = { categorias, subcategorias, familias };
 
   const linhas = dados.map((p) => `
     <tr>
@@ -147,7 +153,7 @@ export async function produtos(raiz, ctx) {
     </div>`;
 
   const novo = raiz.querySelector('#novo');
-  if (novo) novo.addEventListener('click', () => modalProduto({}, ctx));
+  if (novo) novo.addEventListener('click', () => modalProduto({}, ctx, listas));
 
   const importar = raiz.querySelector('#importar');
   if (importar) importar.addEventListener('click', () => modalImportarPlanilha(ctx));
@@ -155,7 +161,7 @@ export async function produtos(raiz, ctx) {
   for (const b of raiz.querySelectorAll('[data-editar]')) {
     b.addEventListener('click', () => {
       const p = dados.find((d) => d.id === b.dataset.editar);
-      modalProduto(p || {}, ctx);
+      modalProduto(p || {}, ctx, listas);
     });
   }
 
@@ -171,16 +177,69 @@ export async function produtos(raiz, ctx) {
   }
 }
 
-function modalProduto(p, ctx) {
+function opcoesDeClassificacao(itens, valor) {
+  return itens.map((x) => `<option value="${ui.esc(x.id)}" ${
+    x.id === valor ? 'selected' : ''}>${ui.esc(x.descricao)}</option>`).join('');
+}
+
+function camposClassificacao(listas, p = {}) {
+  const { categorias, subcategorias, familias } = listas;
+  const semCat = categorias.find((c) => c.descricao.toLowerCase() === 'sem categoria');
+  const cat = p.categoria_id || (semCat && semCat.id) || (categorias[0] && categorias[0].id) || '';
+
+  const subs = subcategorias.filter((s) => s.categoria_id === cat);
+  const semSub = subs.find((s) => s.descricao.toLowerCase() === 'sem subcategoria');
+  const sub = p.subcategoria_id || (semSub && semSub.id) || (subs[0] && subs[0].id) || '';
+
+  const fams = familias.filter((f) => f.subcategoria_id === sub);
+  const semFam = fams.find((f) => f.descricao.toLowerCase() === 'sem família');
+  const fam = p.familia_id || (semFam && semFam.id) || (fams[0] && fams[0].id) || '';
+
+  return `
+    <label class="campo"><span>Categoria</span>
+      <select name="categoria_id" data-cat>${opcoesDeClassificacao(categorias, cat)}</select></label>
+    <label class="campo"><span>Subcategoria</span>
+      <select name="subcategoria_id" data-sub>${opcoesDeClassificacao(subs, sub)}</select></label>
+    <label class="campo"><span>Família</span>
+      <select name="familia_id" data-fam>${opcoesDeClassificacao(fams, fam)}</select></label>`;
+}
+
+function ligarCascata(escopo, listas) {
+  const cat = escopo.querySelector('[data-cat]');
+  const sub = escopo.querySelector('[data-sub]');
+  const fam = escopo.querySelector('[data-fam]');
+  if (!cat || !sub || !fam) return;
+  const { subcategorias, familias } = listas;
+
+  const preencher = (sel, itens) => {
+    sel.innerHTML = itens.map((x) => `<option value="${ui.esc(x.id)}">${ui.esc(x.descricao)}</option>`).join('');
+    const padrao = itens.find((x) => x.descricao.toLowerCase().startsWith('sem '));
+    if (padrao) sel.value = padrao.id;
+  };
+
+  cat.addEventListener('change', () => {
+    preencher(sub, subcategorias.filter((s) => s.categoria_id === cat.value));
+    preencher(fam, familias.filter((f) => f.subcategoria_id === sub.value));
+  });
+  sub.addEventListener('change', () => {
+    preencher(fam, familias.filter((f) => f.subcategoria_id === sub.value));
+  });
+}
+
+function modalProduto(p, ctx, listas) {
   const editando = !!p.id;
   const { fechar, corpo } = ui.modal({
     titulo: editando ? 'Editar produto' : 'Novo produto',
+    largura: '660px',
     corpo: `
       <form id="form-produto" class="grade grade-2">
         ${ui.campoTexto('SKU', 'sku', p.sku, { obrigatorio: true })}
         ${ui.campoTexto('EAN', 'ean', p.ean, { placeholder: 'código de barras' })}
         ${ui.campoTexto('Unidade', 'unidade', p.unidade || 'un', { obrigatorio: true })}
         ${ui.campoTexto('Descrição', 'descricao', p.descricao, { obrigatorio: true })}
+        ${camposClassificacao(listas, p)}
+        ${ui.campoTexto('Quantidade por embalagem', 'quantidade_por_embalagem',
+          p.quantidade_por_embalagem ?? '', { tipo: 'number', placeholder: 'ex.: 12' })}
         <div class="linha-acoes campo-largo">
           <button type="submit" class="botao-primario">${editando ? 'Salvar' : 'Cadastrar'}</button>
           <button type="button" id="cancelar">Cancelar</button>
@@ -188,13 +247,24 @@ function modalProduto(p, ctx) {
       </form>`,
   });
 
+  ligarCascata(corpo, listas);
   corpo.querySelector('#cancelar').addEventListener('click', fechar);
   corpo.querySelector('#form-produto').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const d = ui.dadosDoForm(ev.target);
+    const dados = {
+      sku: d.sku,
+      ean: d.ean || null,
+      unidade: d.unidade || 'un',
+      descricao: d.descricao,
+      categoria_id: d.categoria_id || null,
+      subcategoria_id: d.subcategoria_id || null,
+      familia_id: d.familia_id || null,
+      quantidade_por_embalagem: d.quantidade_por_embalagem ? Number(d.quantidade_por_embalagem) : null,
+    };
     try {
-      if (editando) await atualizar('produtos', p.id, d);
-      else await criar('produtos', { ...d, origem: 'manual' });
+      if (editando) await atualizar('produtos', p.id, dados);
+      else await criar('produtos', { ...dados, origem: 'manual' });
       fechar();
       ui.toast(editando ? 'Produto atualizado.' : 'Produto cadastrado.');
       ctx.recarregar();
