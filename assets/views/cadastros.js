@@ -240,6 +240,8 @@ function modalProduto(p, ctx, listas) {
         ${camposClassificacao(listas, p)}
         ${ui.campoTexto('Quantidade por embalagem', 'quantidade_por_embalagem',
           p.quantidade_por_embalagem ?? '', { tipo: 'number', placeholder: 'ex.: 12' })}
+        <label class="campo"><span>Ativo</span>
+          <input type="checkbox" name="ativo" ${p.ativo === false ? '' : 'checked'}></label>
         <div class="linha-acoes campo-largo">
           <button type="submit" class="botao-primario">${editando ? 'Salvar' : 'Cadastrar'}</button>
           <button type="button" id="cancelar">Cancelar</button>
@@ -261,6 +263,7 @@ function modalProduto(p, ctx, listas) {
       subcategoria_id: d.subcategoria_id || null,
       familia_id: d.familia_id || null,
       quantidade_por_embalagem: d.quantidade_por_embalagem ? Number(d.quantidade_por_embalagem) : null,
+      ativo: !!corpo.querySelector('[name="ativo"]').checked,
     };
     try {
       if (editando) await atualizar('produtos', p.id, dados);
