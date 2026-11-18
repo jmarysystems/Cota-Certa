@@ -133,7 +133,7 @@ export async function produtos(raiz, ctx) {
       <td>${ui.esc(p.unidade)}</td>
       <td class="sub">${ui.esc(p.origem || 'manual')}</td>
       <td class="acoes">
-        ${ctx.admin ? `<button type="button" class="botao-pequeno" data-editar="${ui.esc(p.id)}">Editar</button>
+        ${ctx.pode('produtos', 'editar') ? `<button type="button" class="botao-pequeno" data-editar="${ui.esc(p.id)}">Editar</button>
         <button type="button" class="botao-pequeno botao-perigo" data-excluir="${ui.esc(p.id)}">Excluir</button>` : ''}
       </td>
     </tr>`).join('');
@@ -143,8 +143,8 @@ export async function produtos(raiz, ctx) {
       <div class="cartao-topo">
         <h2>${dados.length} produto(s)</h2>
         <div class="linha-acoes">
-          ${ctx.admin ? '<button type="button" id="importar">Importar planilha</button>' : ''}
-          ${ctx.admin ? '<button type="button" class="botao-primario" id="novo">Novo produto</button>' : ''}
+          ${ctx.pode('produtos', 'cadastrar') ? '<button type="button" id="importar">Importar planilha</button>' : ''}
+          ${ctx.pode('produtos', 'cadastrar') ? '<button type="button" class="botao-primario" id="novo">Novo produto</button>' : ''}
         </div>
       </div>
       ${dados.length ? `<div class="tabela-rolagem"><table>

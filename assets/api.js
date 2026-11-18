@@ -44,6 +44,11 @@ export async function sair() {
   await sb.auth.signOut();
 }
 
+export async function minhasPermissoes() {
+  const { data, error } = await sb.rpc('minhas_permissoes');
+  return error ? {} : (data || {});
+}
+
 export async function sessao() {
   const { data } = await sb.auth.getSession();
   return data.session || null;

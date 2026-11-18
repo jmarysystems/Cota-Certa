@@ -4,8 +4,8 @@ import * as ui from '../ui.js';
 
 export async function lista(raiz, ctx) {
   ctx.setTitulo('Usuários');
-  if (!ctx.admin) {
-    raiz.innerHTML = ui.vazio('Apenas administradores acessam esta área.');
+  if (!ctx.admin && !ctx.pode('usuario', 'cadastrar') && !ctx.pode('usuario', 'editar')) {
+    raiz.innerHTML = ui.vazio('Você não tem permissão para gerenciar usuários.');
     return;
   }
 
@@ -34,7 +34,7 @@ export async function lista(raiz, ctx) {
     <div class="cartao">
       <div class="cartao-topo">
         <h2>${usuarios.length} usuário(s)</h2>
-        <button type="button" class="botao-primario" id="novo">Novo usuário</button>
+        ${(!ctx.admin && !ctx.pode('usuario', 'cadastrar')) ? '' : '<button type="button" class="botao-primario" id="novo">Novo usuário</button>'}
       </div>
       <div class="tabela-rolagem"><table>
         <thead><tr><th>Nome</th><th>CPF/CNPJ (login)</th><th>Perfil</th><th>Fornecedor</th><th>Situação</th><th></th></tr></thead>

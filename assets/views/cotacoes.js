@@ -34,7 +34,7 @@ export async function lista(raiz, ctx) {
     <div class="cartao">
       <div class="cartao-topo">
         <h2>${cots.length} cotação(ões)</h2>
-        ${ctx.admin ? '<a class="botao botao-primario" href="#/cotacoes/nova">Nova cotação</a>' : ''}
+        ${ctx.pode('cotacao', 'cadastrar') ? '<a class="botao botao-primario" href="#/cotacoes/nova">Nova cotação</a>' : ''}
       </div>
       ${cots.length ? `<div class="tabela-rolagem"><table>
         <thead><tr>

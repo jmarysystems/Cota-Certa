@@ -1,5 +1,5 @@
 // Shell da aplicação: login, layout e roteamento por perfil.
-import { sb, sair, perfilAtual, sessao } from './api.js';
+import { sb, sair, perfilAtual, sessao, minhasPermissoes } from './api.js';
 import { NOME_SISTEMA } from './config.js';
 import * as ui from './ui.js';
 import * as cotacoes from './views/cotacoes.js';
@@ -44,6 +44,7 @@ function telaLogin(mensagem = '') {
       const { entrar } = await import('./api.js');
       await entrar(form.documento.value, form.senha.value);
       perfil = await perfilAtual();
+      if (perfil) perfil.permissoes = await minhasPermissoes();
       if (!perfil) throw new Error('Login válido, mas sem perfil de usuário cadastrado.');
       if (perfil.ativo === false) throw new Error('Usuário inativo.');
       iniciarApp();
@@ -120,6 +121,12 @@ async function navegar() {
   const ctx = {
     perfil,
     admin: ehAdmin(perfil),
+    pode: (modulo, acao) => {
+      const p = (perfil && perfil.permissoes) || {};
+      if (p.admin) return true;
+      const m = p[modulo];
+      return !!(m && m[acao]);
+    },
     id,
     setTitulo: (texto) => {
       document.getElementById('titulo').textContent = texto;
@@ -170,6 +177,7 @@ sb.auth.onAuthStateChange((evento) => {
     const s = await sessao();
     if (!s) return telaLogin();
     perfil = await perfilAtual();
+      if (perfil) perfil.permissoes = await minhasPermissoes();
     if (!perfil) {
       await sair();
       return telaLogin('Sua conta não tem perfil cadastrado. Fale com o administrador.');
