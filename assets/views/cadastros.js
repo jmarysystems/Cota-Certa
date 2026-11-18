@@ -117,13 +117,14 @@ function modalFornecedor(f, ctx) {
 // =====================================================================
 export async function produtos(raiz, ctx) {
   ctx.setTitulo('Produtos');
-  const [dados, categorias, subcategorias, familias] = await Promise.all([
+  const [dados, categorias, subcategorias, familias, marcas] = await Promise.all([
     listar('produtos', { ordem: 'sku' }),
     listar('arm_categorias', { ordem: 'descricao' }),
     listar('arm_subcategorias', { ordem: 'descricao' }),
     listar('arm_familias', { ordem: 'descricao' }),
+    listar('arm_marcas', { ordem: 'descricao' }),
   ]);
-  const listas = { categorias, subcategorias, familias };
+  const listas = { categorias, subcategorias, familias, marcas };
 
   const linhas = dados.map((p) => `
     <tr>
@@ -201,7 +202,13 @@ function camposClassificacao(listas, p = {}) {
     <label class="campo"><span>Subcategoria</span>
       <select name="subcategoria_id" data-sub>${opcoesDeClassificacao(subs, sub)}</select></label>
     <label class="campo"><span>Família</span>
-      <select name="familia_id" data-fam>${opcoesDeClassificacao(fams, fam)}</select></label>`;
+      <select name="familia_id" data-fam>${opcoesDeClassificacao(fams, fam)}</select></label>
+    <label class="campo"><span>Marca</span>
+      <select name="marca_id">
+        <option value="">—</option>
+        ${(listas.marcas || []).map((m) => `<option value="${m.id}" ${
+          m.id === (p.marca_id || '') ? 'selected' : ''}>${m.descricao}</option>`).join('')}
+      </select></label>`;
 }
 
 function ligarCascata(escopo, listas) {
@@ -262,6 +269,7 @@ function modalProduto(p, ctx, listas) {
       categoria_id: d.categoria_id || null,
       subcategoria_id: d.subcategoria_id || null,
       familia_id: d.familia_id || null,
+      marca_id: d.marca_id || null,
       quantidade_por_embalagem: d.quantidade_por_embalagem ? Number(d.quantidade_por_embalagem) : null,
       ativo: !!corpo.querySelector('[name="ativo"]').checked,
     };
