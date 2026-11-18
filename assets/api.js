@@ -93,12 +93,18 @@ export async function criar(tabela, dados) {
 export async function atualizar(tabela, id, dados) {
   const { data, error } = await sb.from(tabela).update(dados).eq('id', id).select();
   if (error) throw new Error(traduzErro(error));
-  return Array.isArray(data) ? data[0] : data;
+  if (!Array.isArray(data) || !data.length) {
+    throw new Error('Sem permissão para alterar este registro.');
+  }
+  return data[0];
 }
 
 export async function excluir(tabela, id) {
-  const { error } = await sb.from(tabela).delete().eq('id', id);
+  const { data, error } = await sb.from(tabela).delete().eq('id', id).select();
   if (error) throw new Error(traduzErro(error));
+  if (!Array.isArray(data) || !data.length) {
+    throw new Error('Sem permissão para excluir este registro.');
+  }
 }
 
 // Exclui vários registros por filtro (ex.: todos os vínculos de um fornecedor).
