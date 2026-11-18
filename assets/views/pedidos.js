@@ -16,7 +16,7 @@ const hojeInput = () => {
 };
 
 export async function lista(raiz, ctx) {
-  ctx.setTitulo('Pedidos');
+  ctx.setTitulo('Pedido de Compra');
   document.querySelectorAll('.area-impressao').forEach((n) => n.remove());
 
   const pedidos = await listar('pedidos_gerados', {

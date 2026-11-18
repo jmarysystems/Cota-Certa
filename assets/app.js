@@ -60,7 +60,7 @@ function itensDeMenu() {
   const fornecedor = perfil.tipo === 'fornecedor';
   const itens = [
     ['#/cotacoes', 'Cotações', '▤'],
-    ['#/pedidos', 'Pedidos', '▣'],
+    ['#/pedidos', 'Pedido de Compra', '▣'],
   ];
   if (!fornecedor) {
     itens.unshift(['#/dashboard', 'Dashboard', '▦']);
