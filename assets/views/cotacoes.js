@@ -62,7 +62,8 @@ export async function nova(raiz, ctx) {
       <form id="form-cotacao" class="grade grade-2">
         ${ui.campoTexto('Título', 'titulo', '', { obrigatorio: true, placeholder: 'Ex.: Fixadores — obra 12' })}
         ${ui.campoSelect('Estabelecimento', 'estabelecimento_id',
-          estabelecimentos.map((l) => ({ valor: l.id, rotulo: l.nome })), '', { vazio: '—' })}
+          estabelecimentos.map((l) => ({ valor: l.id, rotulo: l.nome })), '',
+          { vazio: '—', obrigatorio: true })}
         ${ui.campoTexto('Prazo para resposta (data e hora)', 'prazo_resposta', prazoPadrao(), { tipo: 'datetime-local' })}
         ${ui.campoArea('Observação', 'observacao')}
         <div class="linha-acoes campo-largo">
@@ -75,6 +76,10 @@ export async function nova(raiz, ctx) {
   document.getElementById('form-cotacao').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const dados = ui.dadosDoForm(ev.target);
+    if (!dados.estabelecimento_id) {
+      ui.toast('Escolha o estabelecimento.', 'erro');
+      return;
+    }
     try {
       const cot = await criar('cotacoes', {
         titulo: dados.titulo,
