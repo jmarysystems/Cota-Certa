@@ -54,11 +54,15 @@ export async function nova(raiz, ctx) {
     return;
   }
 
+  const estabelecimentos = await listar('arm_lojas', { ordem: 'nome' });
+
   raiz.innerHTML = `
     <div class="cartao">
       <h2>Nova cotação</h2>
       <form id="form-cotacao" class="grade grade-2">
         ${ui.campoTexto('Título', 'titulo', '', { obrigatorio: true, placeholder: 'Ex.: Fixadores — obra 12' })}
+        ${ui.campoSelect('Estabelecimento', 'estabelecimento_id',
+          estabelecimentos.map((l) => ({ valor: l.id, rotulo: l.nome })), '', { vazio: '—' })}
         ${ui.campoTexto('Prazo para resposta (data e hora)', 'prazo_resposta', prazoPadrao(), { tipo: 'datetime-local' })}
         ${ui.campoArea('Observação', 'observacao')}
         <div class="linha-acoes campo-largo">
@@ -78,6 +82,7 @@ export async function nova(raiz, ctx) {
           ? new Date(dados.prazo_resposta).toISOString()
           : null,
         observacao: dados.observacao,
+        estabelecimento_id: dados.estabelecimento_id || null,
         criado_por: ctx.perfil.id,
         status: 'rascunho',
       });
